@@ -6,11 +6,11 @@
       "heading": "System design topics: start here",
       "level": 2,
       "group": "Start here",
-      "one_line": "Start with common system design principles and their pros and cons.",
+      "one_line": "Learn the basic ideas of system design, with their good and bad sides.",
       "summary": {
-        "what": "A starting set of learning resources for common system design principles.",
-        "job": "It helps new learners review scalability topics before trade-offs and building blocks.",
-        "tradeoff": "Everything is a trade-off."
+        "what": "A set of first lessons on common system design ideas.",
+        "job": "It teaches what each idea is, how people use it, and its pros and cons.",
+        "tradeoff": "Every choice has a cost. Everything is a trade-off."
       }
     },
     {
@@ -19,11 +19,11 @@
       "heading": "Study guide",
       "level": 2,
       "group": "Start here",
-      "one_line": "Plan system design study for a short, medium, or long interview timeline.",
+      "one_line": "Pick what to study based on how much time you have before the interview.",
       "summary": {
-        "what": "A suggested set of topics to review for an interview timeline.",
-        "job": "It helps you choose breadth, depth, and practice based on your timeline.",
-        "tradeoff": "Interview questions depend on experience, background, role, company, and luck."
+        "what": "A list of topics to review, based on a short, medium or long interview timeline.",
+        "job": "It tells you how wide and how deep to study, and how many practice questions to try.",
+        "tradeoff": "You cannot know everything. What you get asked depends on your experience, job, company, and luck."
       }
     },
     {
@@ -32,11 +32,11 @@
       "heading": "How to approach a system design interview question",
       "level": 2,
       "group": "Start here",
-      "one_line": "Lead an open-ended design interview with a clear sequence of steps.",
+      "one_line": "Four steps to lead an open design interview, from needs to scaling.",
       "summary": {
-        "what": "A guide for tackling a system design interview question.",
-        "job": "It guides you through requirements, a high-level design, core parts, and scale.",
-        "tradeoff": "Discuss potential solutions and trade-offs when you address bottlenecks."
+        "what": "A four-step plan for answering a system design interview question.",
+        "job": "You list needs, sketch the design, detail the main parts, then fix slow spots.",
+        "tradeoff": "Every fix has a cost. Talk about the possible fixes and their trade-offs."
       }
     },
     {
@@ -45,11 +45,11 @@
       "heading": "Performance vs scalability",
       "level": 2,
       "group": "Trade-offs",
-      "one_line": "Separate a slow system for one user from one that slows under load.",
+      "one_line": "Tell apart a system slow for one user from one slow under heavy use.",
       "summary": {
-        "what": "A service is scalable when added resources increase performance in proportion.",
-        "job": "It helps distinguish a single-user performance problem from a heavy-load scalability problem.",
-        "tradeoff": "More performance can mean serving more work or handling larger work units."
+        "what": "A service is scalable when added resources raise its performance in the same proportion.",
+        "job": "Slow for one user is a performance problem. Slow only under heavy load is a scalability problem.",
+        "tradeoff": "More performance can mean doing more tasks, or handling bigger tasks such as growing data."
       }
     },
     {
@@ -58,11 +58,11 @@
       "heading": "Latency vs throughput",
       "level": 2,
       "group": "Trade-offs",
-      "one_line": "Balance time for one action against actions completed over time.",
+      "one_line": "Balance the time one task takes against how many tasks finish over time.",
       "summary": {
-        "what": "Latency is the time for an action or result. Throughput is actions or results per unit of time.",
-        "job": "It helps set a goal of high throughput with acceptable latency.",
-        "tradeoff": "Aim for maximal throughput with acceptable latency."
+        "what": "Latency is the time one task takes. Throughput is how many tasks finish in a set time.",
+        "job": "It sets a goal: finish as many tasks as you can, with a wait that is acceptable.",
+        "tradeoff": "Aim for the most throughput that still keeps the wait acceptable."
       }
     },
     {
@@ -71,11 +71,11 @@
       "heading": "Availability vs consistency",
       "level": 2,
       "group": "Trade-offs",
-      "one_line": "Choose how a distributed system handles current data and continued responses.",
+      "one_line": "When the network fails, choose between the latest data and always answering.",
       "summary": {
-        "what": "CAP describes consistency, availability, and tolerance of network partitions.",
-        "job": "It helps choose guarantees for a distributed computer system during network failures.",
-        "tradeoff": "Networks are not reliable, so partition tolerance requires a choice between consistency and availability."
+        "what": "In a system of many computers, you can promise only two of three things.",
+        "job": "The three are the latest data, an answer every time, and working through network splits.",
+        "tradeoff": "Networks fail, so you must handle splits. Then you choose between the latest data and always answering."
       }
     },
     {
@@ -84,11 +84,11 @@
       "heading": "Consistency patterns",
       "level": 2,
       "group": "Trade-offs",
-      "one_line": "Choose how copies of data synchronize for client reads.",
+      "one_line": "Choose how copies of the same data stay in step for readers.",
       "summary": {
-        "what": "Weak, eventual, and strong consistency describe when reads see a write.",
-        "job": "It helps synchronize multiple data copies so clients have a consistent view.",
-        "tradeoff": "Weak reads might not see a write; strong consistency replicates data synchronously."
+        "what": "Weak, eventual and strong consistency say when a reader sees a new write.",
+        "job": "They decide how copies of data are synced, so clients see the same data.",
+        "tradeoff": "With weak consistency, a reader may miss a new write. Strong consistency copies data at the same time."
       }
     },
     {
@@ -97,11 +97,11 @@
       "heading": "Availability patterns",
       "level": 2,
       "group": "Trade-offs",
-      "one_line": "Use fail-over and replication to support high availability.",
+      "one_line": "Keep a service running when a server fails, using fail-over and copies.",
       "summary": {
-        "what": "Fail-over and replication are complementary patterns for high availability.",
-        "job": "They keep a service available when a server or component fails.",
-        "tradeoff": "Fail-over adds hardware and complexity, and failure before replication can lose data."
+        "what": "Fail-over and replication (copying data to other servers) work together for high availability.",
+        "job": "With fail-over, a standby server takes over when the main server stops responding.",
+        "tradeoff": "Fail-over needs more hardware and is more complex. New data can be lost if the main server fails first."
       }
     },
     {
@@ -110,11 +110,11 @@
       "heading": "Domain name system",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Translate a domain name to an IP address.",
+      "one_line": "Turn a domain name into the IP address of a server.",
       "summary": {
-        "what": "DNS translates a domain name to an IP address.",
-        "job": "It tells clients which server to contact during a lookup.",
-        "tradeoff": "DNS access adds a slight delay, and cached mappings can become stale."
+        "what": "DNS turns a name like www.example.com into an IP address.",
+        "job": "A client asks DNS which server to contact. Servers and browsers keep answers for a time.",
+        "tradeoff": "Asking DNS adds a small delay. Kept answers can be out of date."
       }
     },
     {
@@ -123,11 +123,11 @@
       "heading": "Content delivery network",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Serve content from proxy servers close to users.",
+      "one_line": "Serve files from servers close to the user.",
       "summary": {
-        "what": "A CDN is a global network of proxy servers that serves content near users.",
-        "job": "It serves static files and keeps fulfilled requests off your servers.",
-        "tradeoff": "Costs can be significant, and content can be stale before its TTL expires."
+        "what": "A CDN is a worldwide network of servers that serve your content from places near users.",
+        "job": "Users get files from a nearby data center. Your own servers handle fewer requests.",
+        "tradeoff": "It can cost a lot. Content can be out of date until its time limit (TTL) ends."
       }
     },
     {
@@ -136,11 +136,11 @@
       "heading": "Load balancer",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Distribute client requests across computing resources.",
+      "one_line": "Share incoming requests across many servers.",
       "summary": {
-        "what": "A load balancer distributes incoming client requests to computing resources.",
-        "job": "It avoids unhealthy or overloaded servers and can reduce a single point of failure.",
-        "tradeoff": "It can become a bottleneck, and multiple load balancers add complexity."
+        "what": "A load balancer sends each incoming client request to one of your computing resources.",
+        "job": "It skips broken or busy servers. It also helps remove a single point of failure.",
+        "tradeoff": "It can become a slow spot. Adding more load balancers makes the setup more complex."
       }
     },
     {
@@ -149,11 +149,11 @@
       "heading": "Reverse proxy (web server)",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Give public clients one interface to internal services.",
+      "one_line": "One public front door for your internal servers.",
       "summary": {
-        "what": "A reverse proxy is a web server that centralizes internal services for the public.",
-        "job": "It forwards a client request to a server and returns that server's response.",
-        "tradeoff": "A single reverse proxy is a single point of failure; more proxies add complexity."
+        "what": "A reverse proxy is a web server that gives the public one entry to your internal services.",
+        "job": "It passes each client request to a server that can answer, then returns that answer.",
+        "tradeoff": "One proxy alone can fail. Adding more proxies makes the setup more complex."
       }
     },
     {
@@ -162,11 +162,11 @@
       "heading": "Application layer",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Separate application services from the web layer.",
+      "one_line": "Run your app's logic on its own servers, apart from the web servers.",
       "summary": {
-        "what": "The application layer can be separated from the web layer.",
-        "job": "It lets each layer scale and be configured independently.",
-        "tradeoff": "Loosely coupled services and microservices add deployment and operations complexity."
+        "what": "You can split the web layer from the application layer.",
+        "job": "You can grow and set up each layer on its own.",
+        "tradeoff": "Many small, loosely linked services need a new way to build and run them. Microservices make deployment harder."
       }
     },
     {
@@ -175,11 +175,11 @@
       "heading": "Database",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Store data and use patterns that help it scale.",
+      "one_line": "Where data is stored, and ways to make it handle more load.",
       "summary": {
-        "what": "This section covers relational databases and NoSQL databases.",
-        "job": "It describes ways to scale a relational database, including replication, federation, and sharding.",
-        "tradeoff": "Replication, federation, and sharding add hardware and complexity."
+        "what": "This part covers two kinds of database: relational (data in tables) and NoSQL.",
+        "job": "It shows ways to grow a relational database: copies, splitting it up, and tuning.",
+        "tradeoff": "Copying, splitting by function, and splitting by data all need more hardware and add complexity."
       }
     },
     {
@@ -188,11 +188,11 @@
       "heading": "Cache",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Reuse prior results to speed page loads and reduce system load.",
+      "one_line": "Keep earlier results so repeat requests are fast and servers do less work.",
       "summary": {
-        "what": "A cache stores prior results so a request can avoid the original work.",
-        "job": "It improves page load times and reduces load on servers and databases.",
-        "tradeoff": "Cache invalidation is difficult, and caches must stay consistent with the source of truth."
+        "what": "A cache saves earlier results, so a repeat request can skip the real work.",
+        "job": "Pages load faster, and servers and databases get less load.",
+        "tradeoff": "The cache must match the original data, and deciding when to update it is hard."
       }
     },
     {
@@ -201,11 +201,11 @@
       "heading": "Asynchronism",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Move expensive work out of the request path.",
+      "one_line": "Do slow work in the background, not while the user waits.",
       "summary": {
-        "what": "Asynchronous workflows run expensive work outside the request path.",
-        "job": "They reduce request times and can prepare time-consuming work in advance.",
-        "tradeoff": "Queues add delays and complexity, so inexpensive or real-time work can suit synchronous operations."
+        "what": "Asynchronous work means slow jobs run outside the request, not in line with it.",
+        "job": "A queue holds jobs while workers do them in the background. The user is not blocked.",
+        "tradeoff": "Queues add delay and complexity. Cheap or real-time work may fit better done at once."
       }
     },
     {
@@ -214,11 +214,11 @@
       "heading": "Communication",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Compare ways clients and servers exchange data.",
+      "one_line": "Ways that clients and servers send data to each other.",
       "summary": {
-        "what": "This section covers HTTP, TCP, UDP, RPC, and REST.",
-        "job": "It helps choose how clients and servers exchange requests, responses, and data.",
-        "tradeoff": "TCP guarantees add delay; UDP is more efficient but less reliable."
+        "what": "This part covers HTTP, TCP, UDP, RPC and REST.",
+        "job": "It compares how clients and servers send requests and answers.",
+        "tradeoff": "TCP is reliable but less suited to time-critical use. UDP is less reliable but suits real-time use."
       }
     },
     {
@@ -227,11 +227,11 @@
       "heading": "Security",
       "level": 2,
       "group": "Building blocks",
-      "one_line": "Cover basic steps that protect system data and inputs.",
+      "one_line": "Basic steps to protect data and user input.",
       "summary": {
-        "what": "Security is a broad topic. The primer covers basic security steps.",
-        "job": "It helps protect data, sanitize inputs, prevent SQL injection, and limit access.",
-        "tradeoff": "Unless a role requires it, the primer says basic security knowledge may be enough."
+        "what": "Security is a big topic. The primer lists only the basics.",
+        "job": "Scramble stored and sent data. Clean user input to stop attacks that sneak in database commands.",
+        "tradeoff": "The primer says basic knowledge is likely enough, unless your role needs security skills."
       }
     },
     {
@@ -240,10 +240,10 @@
       "heading": "Powers of two table",
       "level": 3,
       "group": "Reference",
-      "one_line": "A table of powers of two and common byte sizes.",
+      "one_line": "A table of powers of two and the sizes they give.",
       "summary": {
-        "what": "A table lists powers of two with common counts and byte sizes.",
-        "job": "It is useful for back-of-the-envelope calculations.",
+        "what": "A table that lists powers of two with common counts and byte sizes.",
+        "job": "It helps with quick, rough sums done by hand (back-of-the-envelope).",
         "tradeoff": "None stated in the primer."
       }
     },
@@ -253,10 +253,10 @@
       "heading": "Latency numbers every programmer should know",
       "level": 3,
       "group": "Reference",
-      "one_line": "Compare latency and throughput figures for common computer operations.",
+      "one_line": "Typical times of common computer actions, for quick rough sums.",
       "summary": {
-        "what": "A table compares latency for common computer and network operations.",
-        "job": "It provides handy metrics for back-of-the-envelope calculations.",
+        "what": "A table of how long common computer and network actions take.",
+        "job": "It gives handy numbers for quick, rough estimates.",
         "tradeoff": "None stated in the primer."
       }
     },
@@ -266,10 +266,10 @@
       "heading": "Additional system design interview questions",
       "level": 3,
       "group": "Reference",
-      "one_line": "Common design interview questions with links to solution resources.",
+      "one_line": "More design interview questions, each with links to help you solve it.",
       "summary": {
-        "what": "A list of common system design interview questions with resource links.",
-        "job": "It helps you find resources on how to solve each question.",
+        "what": "A table of common design interview questions with links to resources.",
+        "job": "Follow the links to learn how to solve each question.",
         "tradeoff": "None stated in the primer."
       }
     },
@@ -279,10 +279,10 @@
       "heading": "Real world architectures",
       "level": 3,
       "group": "Reference",
-      "one_line": "Articles about how real systems are designed.",
+      "one_line": "Articles on how real systems are built.",
       "summary": {
-        "what": "A collection of articles on how real world systems are designed.",
-        "job": "It helps identify shared principles, technologies, patterns, and lessons learned.",
+        "what": "A set of articles on how real systems are designed.",
+        "job": "They help you spot shared ideas, tools, patterns, and lessons learned.",
         "tradeoff": "Do not focus on the small details in these articles."
       }
     },
@@ -292,10 +292,10 @@
       "heading": "Company architectures",
       "level": 3,
       "group": "Reference",
-      "one_line": "Architecture references for a range of companies.",
+      "one_line": "Links to how named companies built their systems.",
       "summary": {
-        "what": "A list of companies with links to architecture references.",
-        "job": "It helps you find architecture material for named companies.",
+        "what": "A table of companies, each with links to articles about its architecture.",
+        "job": "It helps you find design material for a company you care about.",
         "tradeoff": "None stated in the primer."
       }
     },
@@ -305,11 +305,11 @@
       "heading": "Company engineering blogs",
       "level": 3,
       "group": "Reference",
-      "one_line": "Engineering blogs for companies where you may interview.",
+      "one_line": "Engineering blogs from many companies, for interview prep.",
       "summary": {
         "what": "A list of engineering blogs from many companies.",
-        "job": "It helps you study architectures from companies where you are interviewing.",
-        "tradeoff": "Questions you encounter might come from the same domain."
+        "job": "It helps you study the designs of companies where you will interview.",
+        "tradeoff": "Interview questions might come from the same field as that company."
       }
     }
   ],
@@ -331,5 +331,63 @@
     "box-object-store": "solution:scaling-aws",
     "box-sharding": "database#sharding",
     "box-federation": "database#federation"
-  }
+  },
+  "solutions": [
+    {
+      "slug": "mint",
+      "one_line": "Design a service that links bank accounts, reads transactions, and suggests a budget."
+    },
+    {
+      "slug": "pastebin",
+      "one_line": "Design a site where users paste text and share it through a random link."
+    },
+    {
+      "slug": "query-cache",
+      "one_line": "Design a cache that saves the results of the latest web server searches."
+    },
+    {
+      "slug": "sales-rank",
+      "one_line": "Design a feature that ranks the past week's best-selling products by category."
+    },
+    {
+      "slug": "scaling-aws",
+      "one_line": "Design a service that grows from one user to millions of users on AWS."
+    },
+    {
+      "slug": "social-graph",
+      "one_line": "Design the data for a social network that finds the shortest path between people."
+    },
+    {
+      "slug": "twitter",
+      "one_line": "Design a Twitter timeline and search: post tweets, view timelines, search keywords."
+    },
+    {
+      "slug": "web-crawler",
+      "one_line": "Design a crawler that visits web pages and lets users search what it found."
+    },
+    {
+      "slug": "call-center",
+      "one_line": "Design the code for a call center with operators, supervisors and directors."
+    },
+    {
+      "slug": "deck-of-cards",
+      "one_line": "Design the code for a 52-card deck, then extend it for blackjack."
+    },
+    {
+      "slug": "hash-table",
+      "one_line": "Design a hash map, a key lookup table that handles clashing keys by chaining."
+    },
+    {
+      "slug": "lru-cache",
+      "one_line": "Design a cache for web query results that drops the least recently used items."
+    },
+    {
+      "slug": "online-chat",
+      "one_line": "Design a text chat with users, friend lists, and group chats."
+    },
+    {
+      "slug": "parking-lot",
+      "one_line": "Design a multi-level parking lot for motorcycles, cars and buses."
+    }
+  ]
 }
