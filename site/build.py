@@ -143,7 +143,7 @@ def rewrite_html(markup, depth, anchor_topics, solution_slugs, current_solution=
     return markup
 
 
-def page(title, body, depth=0, landing=False, counts=None):
+def page(title, body, depth=0, landing=False, counts=None, body_class=""):
     prefix = "../" * depth
     tabs = [("overview", "Overview"), ("topics", f"Topics {counts['topics']}"),
             ("solutions", f"Solutions {counts['solutions']}"), ("diagrams", f"Diagrams {counts['diagrams']}")]
@@ -154,19 +154,80 @@ def page(title, body, depth=0, landing=False, counts=None):
     footer = ('<footer class="footer shell"><p>Text and images from the <a href="https://github.com/donnemartin/system-design-primer" rel="noopener">System Design Primer by Donne Martin</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>. This site splits it into linked pages and adds plain-English summaries.</p><a class="top-link" href="#top">Top ↑</a></footer>')
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="darkreader-lock"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="description" content="A learning path through System Design Primer."><title>{esc(title)} · Thrivbe Lab</title><link rel="stylesheet" href="{prefix}assets/site.css"></head>
-<body><a class="skip-link" href="#main">Skip to content</a><header class="masthead" id="top"><div class="shell"><a class="brand" href="{prefix}index.html#overview"><span class="brand-mark">THRIVBE / LAB</span><span class="brand-name">System Design Primer</span></a><nav class="tabs" role="tablist" aria-label="Sections">{nav}</nav><button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme">◐ Auto</button></div></header><main id="main">{body}</main>{footer}<script src="{prefix}assets/site.js"></script></body></html>'''
+<body class="{esc(body_class)}"><a class="skip-link" href="#main">Skip to content</a><header class="masthead" id="top"><div class="shell"><a class="brand" href="{prefix}index.html#overview"><span class="brand-mark">THRIVBE / LAB</span><span class="brand-name">System Design Primer</span></a><nav class="tabs" role="tablist" aria-label="Sections">{nav}</nav><button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme">◐ Auto</button></div></header><main id="main">{body}</main>{footer}<script src="{prefix}assets/site.js"></script></body></html>'''
 
 
 def diagram_info(path):
     source = path.read_text()
     title = re.search(r"<title>(.*?)</title>", source, re.S)
+    viewbox = re.search(r'<svg\b[^>]*\bviewBox=["\']\s*[-\d.]+\s+[-\d.]+\s+([-\d.]+)\s+([-\d.]+)', source, re.I)
     boxes, cards = [], []
     for card in re.finditer(r'<article\b[^>]*\bid="(box-[^"]+)"[^>]*>(.*?)</article>', source, re.S):
         name = re.search(r"<h2[^>]*>(.*?)</h2>", card.group(2), re.S)
         label = re.sub(r"<[^>]+>", "", name.group(1)).strip() if name else card.group(1)
         boxes.append((card.group(1), label))
         cards.append({"id": card.group(1), "name": label, "links": links_from_html(card.group(2))})
-    return {"title": re.sub(r"<[^>]+>", "", title.group(1)).strip() if title else path.stem.replace("-", " ").title(), "boxes": boxes, "cards": cards, "source": source}
+    width, height = (float(viewbox.group(1)), float(viewbox.group(2))) if viewbox else (1, 1)
+    return {"title": re.sub(r"<[^>]+>", "", title.group(1)).strip() if title else path.stem.replace("-", " ").title(), "boxes": boxes, "cards": cards, "source": source, "aspect_ratio": width / height}
+
+
+def diagram_steps(info, topic_by_slug, readme_heads):
+    """Read the SVG grouping and box-card links as the source of a diagram's side panel."""
+    card_by_id = {card["id"]: card for card in info["cards"]}
+    heading_by_id = {head["id"]: head["text"] for head in readme_heads}
+    grouped = defaultdict(list)
+    for group in re.finditer(r'<g\b[^>]*\bdata-step=["\'](\d+)["\'][^>]*>(.*?)</g>', info["source"], re.S | re.I):
+        number = group.group(1)
+        for box_id in re.findall(r'href=["\']#(box-[^"\']+)', group.group(2), re.I):
+            if box_id not in grouped[number]:
+                grouped[number].append(box_id)
+
+    # A step can deliberately contain no boxes (Twitter's fan-out step is one
+    # example), so the root's declared count is the authoritative list.
+    count_match = re.search(r'\bdata-step-count=["\'](\d+)', info["source"], re.I)
+    step_numbers = [str(number) for number in range(1, int(count_match.group(1)) + 1)] if count_match else sorted(grouped, key=int)
+    rows = []
+    for number in step_numbers:
+        popup = re.search(rf'<article\b[^>]*\bid=["\']pop-{re.escape(number)}["\'][^>]*>.*?<h2[^>]*>(.*?)</h2>', info["source"], re.S | re.I)
+        name = html.unescape(re.sub(r"<[^>]+>", "", popup.group(1))).strip() if popup else f"Step {number}"
+        name = re.sub(r"^\s*\d+\s*·\s*", "", name)
+        chips, seen = [], set()
+        for box_id in grouped[number]:
+            card = card_by_id.get(box_id)
+            if not card:
+                continue
+            for href in card["links"]:
+                match = re.search(r'topics/([\w-]+)\.html(?:#([^"\']+))?', html.unescape(href))
+                if not match or match.group(1) not in topic_by_slug:
+                    continue
+                topic = topic_by_slug[match.group(1)]
+                anchor = match.group(2)
+                label = topic["title"] + (f" › {heading_by_id.get(anchor, anchor)}" if anchor else "")
+                item = (f"topics/{topic['slug']}.html" + (f"#{anchor}" if anchor else ""), label)
+                if item not in seen:
+                    seen.add(item)
+                    chips.append(item)
+        rows.append({"number": number, "name": name, "chips": chips})
+    return rows
+
+
+def diagram_split(slug, info, title, one_line, steps, depth, previous=None, following=None, walkthrough=False):
+    """The shared overview/diagram-page split component."""
+    prefix = "../" * depth
+    frame_src = f"{prefix}embed/{slug}.html"
+    step_markup = "".join(
+        f'<article class="step"><a class="step-name" href="{frame_src}#pop-{row["number"]}" target="diagram-frame"><span>{row["number"]}</span>{esc(row["name"])}</a>'
+        + (f'<div class="chips">' + "".join(f'<a class="chip" href="{prefix}{href}">{esc(label)}</a>' for href, label in row["chips"]) + "</div>" if row["chips"] else "")
+        + "</article>"
+        for row in steps
+    )
+    walkthrough_link = f'<a class="walkthrough-link" href="{prefix}solutions/{slug}.html">Read the full walkthrough →</a>' if walkthrough else ""
+    neighbours = (
+        f'<a href="{prefix}diagrams/{previous}.html">← previous diagram</a>' if previous else "<span>← previous diagram</span>",
+        f'<a href="{prefix}index.html#diagrams">All diagrams</a>',
+        f'<a href="{prefix}diagrams/{following}.html">next diagram →</a>' if following else "<span>next diagram →</span>",
+    )
+    return f'''<div class="split-layout diagram-split" data-diagram-view><div class="diagram-frame-wrap" style="--ar: {info["aspect_ratio"]:.8g}"><iframe class="diagram-frame" name="diagram-frame" data-embed="{frame_src}" data-forward-hash src="{frame_src}" title="{esc(title)}"></iframe></div><aside class="diagram-side"><p class="eyebrow">Interactive diagram</p><h1>{esc(title)}</h1><p class="diagram-one-line">{esc(one_line)}</p><p class="diagram-howto">Click a box or a step to read about it. Use Play to walk through the steps.</p><div class="step-list">{step_markup}</div>{walkthrough_link}<nav class="diagram-nav">{neighbours[0]}<span>·</span>{neighbours[1]}<span>·</span>{neighbours[2]}</nav></aside></div>'''
 
 
 def topic_sections(readme, headings, topics):
@@ -292,6 +353,7 @@ def build():
     (OUT / "topics").mkdir(parents=True)
     (OUT / "solutions").mkdir()
     (OUT / "diagrams").mkdir()
+    (OUT / "embed").mkdir()
     shutil.copytree(ROOT / "images", OUT / "images")
     shutil.copytree(SITE / "assets", OUT / "assets")
     for info in solutions:
@@ -300,7 +362,8 @@ def build():
         for png in info["path"].glob("*.png"):
             shutil.copy2(png, target / png.name)
     for path in (SITE / "diagrams").glob("*.html"):
-        shutil.copy2(path, OUT / "diagrams" / path.name)
+        # Keep the authored diagram documents byte-for-byte intact at their old depth.
+        shutil.copy2(path, OUT / "embed" / path.name)
 
     # Collect diagram and solution relationship evidence from actual link targets.
     diagrams_for_topic = defaultdict(list)
@@ -421,31 +484,17 @@ def build():
         chips = "".join(topic_groups)
         diagram = diagrams.get(sol["slug"])
         if diagram:
-            visual = f'<iframe class="diagram-frame" src="../diagrams/{sol["slug"]}.html" title="{esc(diagram["title"])}"></iframe>'
+            visual = f'<div class="diagram-inline diagram-frame-wrap" style="--ar: {diagram["aspect_ratio"]:.8g}"><iframe class="diagram-frame" name="diagram-frame" data-embed="../embed/{sol["slug"]}.html" src="../embed/{sol["slug"]}.html" title="{esc(diagram["title"])}"></iframe></div><p class="diagram-page-link"><a href="../diagrams/{sol["slug"]}.html">Open the diagram page →</a></p>'
         else:
             main_image = sol["path"] / f'{sol["path"].name}.png'
             visual = f'<img class="solution-image" src="../images/solutions/{sol["slug"]}/{main_image.name}" alt="Diagram for {esc(sol["title"])}">' if main_image.exists() else ""
         body = f'<section class="page-hero shell"><p class="breadcrumb"><a href="../index.html#solutions">Solutions</a> › {esc(sol["kind"])}</p><h1>{esc(sol["title"])}</h1>{"<section class=\"topics-used\"><h2>Topics used</h2><div class=\"chips\">" + chips + "</div></section>" if chips else ""}</section><section class="content shell">{visual}<section class="original"><h2>Original text</h2>{markup}</section></section>'
         (OUT / "solutions" / f'{sol["slug"]}.html').write_text(page(sol["title"], body, 1, counts=counts))
 
-    # Landing page: steps come from hero's real SVG links, not a separate hand list.
-    step_rows = defaultdict(list)
-    hero_source = diagrams["hero"]["source"]
-    for group in re.finditer(r'<g\b[^>]*data-motion-item[^>]*data-step="(\d+)"[^>]*>(.*?)</g>', hero_source, re.S):
-        for box in re.findall(r'href="#(box-[^"]+)"', group.group(2)):
-            dest = config.get("hero_boxes", {}).get(box, "")
-            if dest and not dest.startswith("solution:"):
-                slug, _, anchor = dest.partition("#")
-                title = next((h["text"] for h in readme_heads if h["id"] == anchor), topic_by_slug[slug]["title"]) if anchor else topic_by_slug[slug]["title"]
-                item = (f'topics/{slug}.html' + (f'#{anchor}' if anchor else ""), title)
-                if item not in step_rows[group.group(1)]: step_rows[group.group(1)].append(item)
-    steps = []
-    for number in sorted(step_rows, key=int):
-        pop = re.search(rf'<article[^>]*id="pop-{number}"[^>]*>.*?<h2>(.*?)</h2>', hero_source, re.S)
-        name = html.unescape(re.sub(r"<[^>]+>", "", pop.group(1))).strip() if pop else f"Step {number}"
-        name = re.sub(r"^\s*\d+\s*·\s*", "", name)
-        chips = "".join(f'<a class="chip" href="{href}">{esc(label)}</a>' for href, label in step_rows[number])
-        steps.append(f'<article class="step"><h3><span>{number}</span>{esc(name)}</h3><div class="chips">{chips}</div></article>')
+    # Landing and diagram pages both derive their steps directly from diagram markup.
+    solution_copy = {item["slug"]: item.get("one_line", "") for item in config.get("solutions", [])}
+    diagram_order = ["hero"] + [item["slug"] for item in solutions if item["slug"] in diagrams]
+    hero_steps = diagram_steps(diagrams["hero"], topic_by_slug, readme_heads)
     groups = []
     for group in dict.fromkeys(t["group"] for t in topics):
         cards = []
@@ -465,7 +514,7 @@ def build():
         cards = []
         for sol in [x for x in solutions if x["kind"] == kind]:
             configured = next((x.get("one_line") for x in config.get("solutions", []) if x.get("slug") == sol["slug"]), sol["title"])
-            badge = '<span class="type-tag live">▶ Interactive diagram</span>' if sol["slug"] in diagrams else ""
+            badge = f'<a class="type-tag live" href="diagrams/{sol["slug"]}.html">▶ Interactive diagram</a>' if sol["slug"] in diagrams else ""
             cards.append(f'<article class="guide-card"><div class="card-body"><div class="card-meta"><span>{esc(kind)}</span>{badge}</div><h3>{esc(sol["title"])}</h3><p>{esc(configured)}</p><div class="card-footer"><a href="solutions/{sol["slug"]}.html">Open solution →</a></div></div></article>')
         sol_groups.append(f'<section class="topic-group"><h2>{kind}</h2><div class="card-grid">{"".join(cards)}</div></section>')
     image_records = readme_images(readme, readme_heads, anchor_topics, topic_by_slug, solution_slugs)
@@ -497,8 +546,25 @@ def build():
             thumbnail = source / f'{source.name}.png' if source else None
             preview = f'<img class="diagram-thumbnail" src="images/solutions/{key}/{thumbnail.name}" alt="">' if thumbnail and thumbnail.exists() else ""
             diagram_cards.append(f'<article class="guide-card">{preview}<div class="card-body"><h3>{esc(title)}</h3><div class="card-footer"><a href="diagrams/{key}.html">Open diagram →</a></div></div></article>')
-    landing = f'''<div role="tabpanel" id="overview" aria-labelledby="tab-overview"><section class="hero"><div class="shell"><p class="eyebrow">Read the primer</p><h1>Learn one system idea at a time.</h1><p class="hero-copy">Start with the basics. Use the diagram links to see where each idea fits.</p><div class="stamps"><div class="library-stamp"><strong>{counts['topics']}</strong><span>Topics</span></div><div class="library-stamp"><strong>{counts['solutions']}</strong><span>Solutions</span></div><div class="library-stamp"><strong>{counts['diagrams']}</strong><span>Diagrams</span></div></div></div></section><section class="section"><div class="shell"><p class="section-label">Overview</p><h2>Follow a request through the system.</h2><div class="split-layout"><iframe class="diagram-frame" src="diagrams/hero.html" title="How a web system scales"></iframe><div class="step-list">{"".join(steps)}</div></div></div></section></div><div role="tabpanel" id="topics" aria-labelledby="tab-topics" hidden><section class="section"><div class="shell"><p class="section-label">Topics</p><h1>Learn one system idea at a time.</h1>{"".join(groups)}</div></section></div><div role="tabpanel" id="solutions" aria-labelledby="tab-solutions" hidden><section class="section"><div class="shell"><p class="section-label">Solutions</p><h1>See the ideas in use.</h1>{"".join(sol_groups)}</div></section></div><div role="tabpanel" id="diagrams" aria-labelledby="tab-diagrams" hidden><section class="section"><div class="shell"><p class="section-label">Diagrams</p><h1>Explore the visual guides.</h1><div class="card-grid">{"".join(diagram_cards)}</div><h2 class="gallery-heading">Images from the primer</h2><div class="gallery">{"".join(images)}</div></div></section></div>'''
-    (OUT / "index.html").write_text(page("System Design Primer", landing, landing=True, counts=counts))
+    for position, slug in enumerate(diagram_order):
+        info = diagrams[slug]
+        solution = solution_by_slug.get(slug)
+        title = "How a web system scales" if slug == "hero" else solution["title"]
+        one_line = "Follow one request from the user to the data." if slug == "hero" else solution_copy.get(slug, title)
+        split = diagram_split(
+            slug, info, title, one_line, diagram_steps(info, topic_by_slug, readme_heads), 1,
+            previous=diagram_order[position - 1] if position else None,
+            following=diagram_order[position + 1] if position + 1 < len(diagram_order) else None,
+            walkthrough=slug != "hero",
+        )
+        body = f'<section class="diagram-page"><div class="shell">{split}</div></section>'
+        (OUT / "diagrams" / f"{slug}.html").write_text(page(title, body, 1, counts=counts, body_class="diagram-page-body"))
+
+    overview_split = diagram_split(
+        "hero", diagrams["hero"], "How a web system scales", "Follow one request from the user to the data.", hero_steps, 0,
+    )
+    landing = f'''<div role="tabpanel" id="overview" aria-labelledby="tab-overview"><section class="overview-intro shell"><h1>Learn system design by following one request.</h1><div class="inline-stats"><span><strong>{counts['topics']}</strong> Topics</span><span><strong>{counts['solutions']}</strong> Solutions</span><span><strong>{counts['diagrams']}</strong> Diagrams</span></div></section><section class="overview-diagram"><div class="shell">{overview_split}</div></section></div><div role="tabpanel" id="topics" aria-labelledby="tab-topics" hidden><section class="section"><div class="shell"><p class="section-label">Topics</p><h1>Learn one system idea at a time.</h1>{"".join(groups)}</div></section></div><div role="tabpanel" id="solutions" aria-labelledby="tab-solutions" hidden><section class="section"><div class="shell"><p class="section-label">Solutions</p><h1>See the ideas in use.</h1>{"".join(sol_groups)}</div></section></div><div role="tabpanel" id="diagrams" aria-labelledby="tab-diagrams" hidden><section class="section"><div class="shell"><p class="section-label">Diagrams</p><h1>Explore the visual guides.</h1><div class="card-grid">{"".join(diagram_cards)}</div><h2 class="gallery-heading">Images from the primer</h2><div class="gallery">{"".join(images)}</div></div></section></div>'''
+    (OUT / "index.html").write_text(page("System Design Primer", landing, landing=True, counts=counts, body_class="landing-page"))
     print(f"gallery images: {len(images)} (unique README srcs: {len(image_records)}, dropped remote: {len(dropped_images)})")
     print(f"unresolved README anchors: {len(UNRESOLVED_ANCHORS)}" + (f" — {', '.join(sorted(UNRESOLVED_ANCHORS)[:10])}" if UNRESOLVED_ANCHORS else ""))
     return link_check(config, topic_by_slug, counts)
@@ -520,8 +586,11 @@ def link_check(config, topics, counts):
             target = (file.parent / path).resolve()
             if not target.exists():
                 failures.append(f"{file.relative_to(OUT)}: missing {value}")
-            elif frag and target.suffix == ".html" and frag not in set(re.findall(r'\bid=["\']([^"\']+)', target.read_text())):
-                failures.append(f"{file.relative_to(OUT)}: missing {value}")
+            elif frag and target.suffix == ".html":
+                # Wrapper-page fragments identify elements in their raw embed document.
+                anchor_target = OUT / "embed" / target.name if target.parent == OUT / "diagrams" else target
+                if frag not in set(re.findall(r'\bid=["\']([^"\']+)', anchor_target.read_text())):
+                    failures.append(f"{file.relative_to(OUT)}: missing {value}")
     index = (OUT / "index.html").read_text()
     for box, dest in config.get("hero_boxes", {}).items():
         if dest.startswith("solution:"): continue

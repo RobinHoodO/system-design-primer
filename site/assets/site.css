@@ -686,3 +686,250 @@ h3 {
     scroll-behavior: auto;
   }
 }
+
+/* Interactive diagram wrappers */
+:root {
+  --topbar: 72px;
+  --intro: 0px;
+  --footer: 0px;
+}
+
+.overview-intro {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--ink);
+}
+
+.overview-intro h1 {
+  max-width: none;
+  font: 500 clamp(22px, 2.5vw, 35px)/1 var(--serif);
+  letter-spacing: -.045em;
+}
+
+.inline-stats {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 13px;
+  color: var(--muted);
+  font: 700 10px/1 var(--mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.inline-stats strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.diagram-page .shell,
+.overview-diagram .shell {
+  height: 100%;
+}
+
+.diagram-split {
+  display: flex;
+  min-width: 0;
+  gap: clamp(14px, 2vw, 28px);
+  margin: 0;
+}
+
+.diagram-frame-wrap {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: var(--panel);
+}
+
+.diagram-frame-wrap .diagram-frame {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: auto;
+  border: 0;
+}
+
+.diagram-side {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--ink);
+  background: var(--panel);
+}
+
+.diagram-side .eyebrow {
+  margin-bottom: 8px;
+}
+
+.diagram-side h1 {
+  max-width: none;
+  font: 500 clamp(26px, 2.4vw, 42px)/.96 var(--serif);
+  letter-spacing: -.05em;
+}
+
+.diagram-one-line,
+.diagram-howto {
+  margin: 10px 0 0;
+  color: var(--copy);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.diagram-howto {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diagram-side .step-list {
+  position: static;
+  display: grid;
+  max-height: none;
+  margin-top: 14px;
+  border: 0;
+}
+
+.diagram-side .step {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+}
+
+.diagram-side .step:nth-child(odd) {
+  background: transparent;
+}
+
+.step-name {
+  flex: 0 1 auto;
+  color: inherit;
+  font: 500 17px/1.08 var(--serif);
+  text-decoration: none;
+}
+
+.step-name span {
+  margin-right: 5px;
+  color: var(--coral);
+  font: 700 10px/1 var(--mono);
+}
+
+.diagram-side .chips {
+  flex: 1 1 140px;
+  gap: 4px;
+  margin: 0;
+}
+
+.diagram-side .chip {
+  min-height: 20px;
+  padding: 3px 5px;
+  font-size: 9px;
+}
+
+.walkthrough-link,
+.diagram-page-link a {
+  display: inline-block;
+  margin-top: 12px;
+  font: 700 11px/1.2 var(--mono);
+}
+
+.diagram-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 16px;
+  color: var(--muted);
+  font: 700 10px/1.25 var(--mono);
+}
+
+.diagram-nav a { color: var(--ink); }
+
+.diagram-inline {
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: var(--ar);
+}
+
+.diagram-page-link { margin: 10px 0 0; }
+
+@media (min-width: 901px) {
+  body.diagram-page-body,
+  body.landing-page.landing-overview {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  body.diagram-page-body .footer,
+  body.landing-page.landing-overview .footer {
+    min-height: 0;
+    padding: 5px 0;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  body.diagram-page-body .footer p,
+  body.landing-page.landing-overview .footer p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .diagram-page,
+  .overview-diagram {
+    height: calc(100vh - var(--topbar) - var(--intro) - var(--footer));
+  }
+
+  .diagram-split {
+    height: 100%;
+    align-items: stretch;
+  }
+
+  /* The iframe fills the split; its internal grid gives the measured controls their own row. */
+  .diagram-split > .diagram-frame-wrap {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 65%;
+    height: 100%;
+    aspect-ratio: var(--ar);
+    align-self: stretch;
+  }
+
+  .diagram-side {
+    flex: 1 1 280px;
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .overview-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .diagram-split {
+    flex-direction: column;
+    margin-top: 18px;
+  }
+
+  .diagram-split > .diagram-frame-wrap,
+  .diagram-inline {
+    width: 100%;
+    height: auto;
+    aspect-ratio: var(--ar);
+  }
+
+  .diagram-frame-wrap .diagram-frame {
+    height: 100%;
+  }
+
+  .diagram-side { width: 100%; }
+}
