@@ -493,9 +493,22 @@ h3 {
   align-items: flex-start;
 }
 
-.backlink-detail {
+.backlink-sections {
   color: var(--copy2);
-  font-size: 13px;
+  font: 700 11px/1.4 var(--mono);
+}
+
+.backlink-sections summary {
+  cursor: pointer;
+}
+
+.backlink-sections ul {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+
+.backlink-sections a {
+  color: inherit;
 }
 
 .topic-use {

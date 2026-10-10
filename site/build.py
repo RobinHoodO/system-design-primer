@@ -360,8 +360,11 @@ def build():
             anchors = solution_topic_links[slug].get(sol["slug"])
             if anchors is None:
                 continue
-            subtopics = [next((head["text"] for head in readme_heads if head["id"] == anchor), anchor) for anchor in anchors if anchor]
-            solution_rows.append((f"../solutions/{sol['slug']}.html", sol["title"], subtopics))
+            section_links = []
+            for anchor in dict.fromkeys(anchor for anchor in anchors if anchor):
+                text = next((head["text"] for head in readme_heads if head["id"] == anchor), anchor)
+                section_links.append((f"#{anchor}", text))
+            solution_rows.append((f"../solutions/{sol['slug']}.html", sol["title"], section_links))
         related = []
         for other_slug, markup in original_by_topic.items():
             if re.search(rf'href="(?:\.\./)?topics/{re.escape(slug)}\.html(?:#.*?)?"', markup):
@@ -374,8 +377,11 @@ def build():
             if not entries:
                 return ""
             rows = []
-            for href, title, subtopics in entries:
-                detail = f'<span class="backlink-detail">— {esc(", ".join(dict.fromkeys(subtopics)))}</span>' if subtopics else ""
+            for href, title, sections in entries:
+                detail = ""
+                if sections:
+                    links = "".join(f'<li><a href="{section_href}">{esc(section_title)}</a></li>' for section_href, section_title in sections)
+                    detail = f'<details class="backlink-sections"><summary>Uses {len(sections)} sections</summary><ul>{links}</ul></details>'
                 rows.append(f'<div class="backlink-row"><a class="chip" href="{href}">{esc(title)}</a>{detail}</div>')
             return '<section class="backlinks"><h2>Used in solutions</h2><div class="backlink-rows">' + "".join(rows) + "</div></section>"
         nav = "<nav class=\"page-nav\">" + (f'<a href="{topics[position-1]["slug"]}.html">← {esc(topics[position-1]["title"])}</a>' if position else "") + (f'<a href="{topics[position+1]["slug"]}.html">{esc(topics[position+1]["title"])} →</a>' if position + 1 < len(topics) else "") + "</nav>"
