@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="darkreader-lock">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Design a system that scales to millions of users on AWS — interactive diagram</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --color-paper: #f6f3ec;
+      --color-panel: #fffdf8;
+      --color-ink: #101a2e;
+      --color-muted: #60708b;
+      --color-soft: #60708b;
+      --color-accent: #ff7961;
+      --color-lime: #c9f24b;
+      --color-link: #96c1ff;
+      --color-link-text: #1d4f9a;
+      --color-rule: #dfe3df;
+      --color-strip: #f0f1ee; --color-pill: #d9ee4a; --color-tag: #eefb82;
+      --tint-coral: #fcd7c6; --tint-blue: #dbe9fb; --tint-lime: #f0fab4; --color-ring-o: #a9bfd0; --color-ring-i: #5aa3f2; --color-diag: #3f7f8c;
+      --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-serif: ui-serif, Georgia, "Times New Roman", serif;
+      --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      --motion-fast: 160ms;
+      --motion-step: 480ms;
+      --motion-hold: 720ms;
+      --motion-total: 5040ms;
+      --motion-ease: cubic-bezier(.2,.8,.2,1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-paper: #11151d; --color-panel: #171c26; --color-ink: #ece8de;
+        --color-muted: #95a0b4; --color-soft: #95a0b4; --color-rule: #2d3543;
+        --color-link-text: #96c1ff; --color-strip: #212836; --color-pill: #b8d63a; --color-tag: #c9f24b;
+        --tint-coral: #5a352b; --tint-blue: #25385a; --tint-lime: #3d4a1d; --color-ring-o: #4b6275; --color-ring-i: #4a8fdc; --color-diag: #6fb3c0;
+      }
+    }
+    :root[data-theme="dark"],
+    :root:has(#t-dark:checked),
+    body:has(#t-dark:checked) {
+      --color-paper: #11151d; --color-panel: #171c26; --color-ink: #ece8de;
+        --color-muted: #95a0b4; --color-soft: #95a0b4; --color-rule: #2d3543;
+        --color-link-text: #96c1ff; --color-strip: #212836; --color-pill: #b8d63a; --color-tag: #c9f24b;
+        --tint-coral: #5a352b; --tint-blue: #25385a; --tint-lime: #3d4a1d; --color-ring-o: #4b6275; --color-ring-i: #4a8fdc; --color-diag: #6fb3c0;
+    }
+    :root[data-theme="light"],
+    :root:has(#t-light:checked),
+    body:has(#t-light:checked) {
+      --color-paper: #f7f7f2; --color-panel: #ffffff; --color-ink: #101a2e;
+        --color-muted: #60708b; --color-soft: #60708b; --color-rule: #dfe3df;
+        --color-link-text: #1d4f9a; --color-strip: #f0f1ee; --color-pill: #d9ee4a; --color-tag: #eefb82;
+        --tint-coral: #fcd7c6; --tint-blue: #dbe9fb; --tint-lime: #f0fab4; --color-ring-o: #a9bfd0; --color-ring-i: #5aa3f2; --color-diag: #3f7f8c;
+    }
+    html:has(#t-dark:checked) { color-scheme: dark; }
+    html:has(#t-light:checked) { color-scheme: light; }
+    html { background: var(--color-paper); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 32px 16px 48px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font-family: var(--font-sans);
+      display: grid;
+      justify-items: center;
+    }
+    [data-motion-root] { width: min(100%, 1000px); max-width: 100%; min-width: 0; outline: none; }
+    .topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 20px;
+    }
+    .back {
+      color: var(--color-link-text); font: 500 14px/1.4 var(--font-sans);
+      min-height: 44px; display: inline-flex; align-items: center;
+    }
+    .back:focus-visible, .node-link:focus-visible, .follow:focus-visible {
+      outline: 3px solid var(--color-accent); outline-offset: 2px;
+    }
+    .theme { display: inline-flex; border: 1px solid var(--color-rule); border-radius: 4px; padding: 0; margin: 0; min-width: 0; }
+    .theme legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    .theme input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .theme label {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 44px; min-height: 44px; padding: 0 12px; cursor: pointer;
+      color: var(--color-muted); font: 600 12px/1 var(--font-sans);
+    }
+    .theme input:checked + label { background: var(--color-ink); color: var(--color-paper); }
+    .theme input:focus-visible + label { outline: 3px solid var(--color-accent); outline-offset: -3px; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    h1.sr-only-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    svg { display: block; width: 100%; min-width: 0; height: auto; }
+    .diagram-container { position: relative; width: 100%; overflow: visible; }
+    .bg { fill: var(--color-paper); }
+    .title { fill: var(--color-ink); font: 400 64px var(--font-sans); letter-spacing: -1px; }
+    .b { fill: #101a2e; font-weight: 800; }
+    .card-box { fill: var(--color-panel); stroke: var(--color-rule); stroke-width: 2; }
+    .card-box.soft { fill: var(--color-strip); stroke: var(--color-rule); }
+    .edge-crm { stroke: #ff9a7a; stroke-width: 3; }
+    .edge-enr { stroke: #5ac8f0; stroke-width: 3; }
+    .strip { fill: var(--color-strip); }
+    .t-coral { fill: var(--tint-coral); }
+    .t-blue { fill: var(--tint-blue); }
+    .t-lime { fill: var(--tint-lime); }
+    .pill { fill: var(--color-panel); stroke: var(--color-pill); stroke-width: 3; transition: stroke-width var(--motion-fast); }
+    .pill-ul { fill: var(--color-pill); opacity: .85; }
+    .pill-t { fill: var(--color-ink); font-weight: 700; font-family: var(--font-sans); letter-spacing: -.5px; }
+    .tag { fill: var(--color-tag); }
+    .tag-t { fill: #101a2e; font: 500 20px var(--font-sans); }
+    .txt { fill: var(--color-ink); font-family: var(--font-sans); }
+    .txt-b { fill: var(--color-ink); font-family: var(--font-sans); font-weight: 700; }
+    .txt-m { fill: var(--color-muted); font-family: var(--font-sans); font-weight: 500; }
+    .ico { fill: var(--color-rule); }
+    .chip-c { fill: var(--color-panel); stroke: var(--color-rule); stroke-width: 3; }
+    .chip-d { fill: var(--color-ink); }
+    .logo-bg { fill: #fff; stroke: var(--color-rule); stroke-width: 0.8; }
+    .ico-l { fill: var(--color-ink); font-family: var(--font-sans); font-weight: 700; pointer-events: none; }
+    .dot-lime { fill: #c9f24b; }
+    .dot-red { fill: #ef4b4b; }
+    .ph { fill: var(--color-strip); stroke: var(--color-rule); }
+    .line { fill: none; stroke: var(--color-ink); stroke-width: 1.6; }
+    .loop { fill: none; stroke: var(--color-ink); stroke-width: 1.6; stroke-dasharray: 5 5; }
+    .rule { stroke: var(--color-rule); stroke-width: 1.5; }
+    .ring-o { fill: none; stroke: var(--color-ring-o); stroke-width: 10; opacity: .35; }
+    .arc-o { fill: none; stroke: var(--color-ring-o); stroke-width: 4; }
+    .arc-i { fill: none; stroke: var(--color-ring-i); stroke-width: 3; }
+    .diag { fill: none; stroke: var(--color-diag); stroke-width: 3; }
+    .mkp { fill: var(--color-ink); }
+    .mko { fill: var(--color-ring-o); }
+    .mki { fill: var(--color-ring-i); }
+    .mkt { fill: var(--color-diag); }
+    .node-link { cursor: pointer; }
+    .node-link:hover .pill { stroke-width: 5; }
+    .motion-ready .is-current .pill { stroke: var(--color-ink); stroke-width: 5; }
+    .motion-ready .is-current .tag { fill: #c9f24b; stroke: var(--color-ink); stroke-width: 2; }
+    .motion-ready[data-frame="step"] [data-motion-item].is-visible:not(.is-current) { opacity: .28; }
+
+    /* Idle state: whole diagram visible. Dimming applies only while stepping or playing. */
+    .motion-ready[data-frame="start"]:not(.is-playing) [data-motion-item] { opacity: 1; transform: none; }
+
+    /* Every box is a link. */
+    .box-link { cursor: pointer; }
+    .hit { fill: transparent; stroke: transparent; stroke-width: 5; }
+    .box-link:is(:hover, :focus-visible) :is(.card-box, .chip-c, .hit, .pill) {
+      stroke: #c9f24b; stroke-width: 5; filter: drop-shadow(0 0 1.5px rgba(16,26,46,.7));
+    }
+    .box-link:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+
+    .motion-ready [data-motion-item] {
+      opacity: .12;
+      transform: translateY(8px);
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity var(--motion-step) var(--motion-ease),
+                  transform var(--motion-step) var(--motion-ease);
+    }
+    .motion-ready [data-motion-item].is-visible,
+    .motion-ready[data-frame="end"] [data-motion-item],
+    .motion-ready[data-frame="static"] [data-motion-item] {
+      opacity: 1;
+      transform: none;
+    }
+
+    [data-motion-controls] {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--color-rule);
+    }
+    .motion-ready [data-motion-controls] { display: flex; }
+    [data-motion-controls][hidden] { display: none !important; }
+    [data-motion-controls] button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-muted);
+      border-radius: 4px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font: 600 12px/1 var(--font-sans);
+      cursor: pointer;
+    }
+    [data-motion-controls] button:hover { border-color: var(--color-accent); }
+    [data-motion-controls] button:focus-visible {
+      outline: 3px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+    [data-motion-controls] button:disabled { cursor: not-allowed; opacity: .45; }
+    .keyboard-help { color: var(--color-muted); font: 400 12px/1.4 var(--font-mono); }
+    [data-motion-status-visible] {
+      margin-left: auto;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+    noscript p {
+      margin: 12px 0 0;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+    }
+
+    /* Detail panel: all cards without JS, follows playback step, or pinned by :target. */
+    .panel { margin-top: 24px; scroll-margin-top: 16px; }
+    .panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .panel-head p { margin: 0; color: var(--color-muted); font: 500 12px/1.4 var(--font-mono); }
+    .follow { color: var(--color-link-text); font: 600 12px/1 var(--font-sans); min-height: 44px; display: inline-flex; align-items: center; }
+    .card {
+      margin: 0 0 12px; padding: 16px; border: 1px solid var(--color-rule); border-radius: 6px;
+      background: var(--color-panel); scroll-margin-top: 16px;
+    }
+    .card h2 { margin: 0 0 4px; font: 400 22px/1.2 var(--font-serif); }
+    .card .goal { margin: 0 0 12px; color: var(--color-muted); font: 400 14px/1.5 var(--font-sans); }
+    .card ul { margin: 0; padding-left: 18px; font: 400 14px/1.6 var(--font-sans); }
+    .card code { font: 500 13px var(--font-mono); }
+    .hint { display: none; color: var(--color-muted); font: 400 14px/1.5 var(--font-sans); }
+    .motion-ready .card { display: none; }
+    .motion-ready[data-step-current="0"] .hint { display: block; }
+    .motion-ready[data-step-current="1"] #detail-1,
+    .motion-ready[data-step-current="2"] #detail-2,
+    .motion-ready[data-step-current="3"] #detail-3,
+    .motion-ready[data-step-current="4"] #detail-4,
+    .motion-ready[data-step-current="5"] #detail-5,
+    .motion-ready[data-step-current="6"] #detail-6,
+    .motion-ready[data-step-current="7"] #detail-7 { display: block; }
+    /* Popup explainers: sit inside the diagram frame, next to the box or pill they explain. */
+    .pop {
+      --w: min(400px, 92%);
+      display: none; position: absolute; z-index: 30; width: var(--w);
+      left: min(calc(var(--x) + 10px), calc(100% - var(--w)));
+      top: var(--y);
+      margin: 0; padding: 20px 22px 22px; border: 1px solid var(--color-rule); border-radius: 14px;
+      background: var(--color-panel); color: var(--color-ink); box-shadow: 0 10px 30px rgba(16,26,46,.28);
+      scroll-margin: 35vh 0;
+    }
+    .pop.pl { left: max(0px, min(calc(var(--x) - var(--w) - 10px), calc(100% - var(--w)))); }
+    .pop.pu { transform: translateY(calc(-100% + 60px)); }  /* lower half: grow upward so it stays in the frame */
+    .pop:target { display: block; border-color: var(--color-accent); }
+    .pop h2 { margin: 0 30px 8px 0; font: 400 22px/1.2 var(--font-serif); }
+    .pop h3 { margin: 16px 0 4px; color: var(--color-muted); font: 600 11px/1.3 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+    .pop p, .pop ul { margin: 0; font: 400 15px/1.55 var(--font-sans); }
+    .pop .goal { margin: 0 0 8px; color: var(--color-muted); font-size: 15px; line-height: 1.55; }
+    .pop ul { padding-left: 18px; }
+    .pop li + li { margin-top: 4px; }
+    .pop code { font: 500 13.5px var(--font-mono); }
+    .pop .phase-tag { margin: 0 0 4px; }
+    .pop-x {
+      position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 16px; color: var(--color-muted); font: 500 16px/1 var(--font-sans); text-decoration: none;
+    }
+    .pop-x:hover { color: var(--color-ink); background: var(--color-strip); }
+    .pop-x:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 1px; }
+    .phase-tag a {
+      display: inline-flex; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 11px;
+      background: var(--color-tag); color: #101a2e; font: 500 11px/1 var(--font-sans); text-decoration: none;
+    }
+    .phase-tag a:hover { outline: 2px solid var(--color-ink); }
+    .phase-tag a:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+    .pop .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .pop .chips li { padding: 3px 11px; border: 1px solid var(--color-rule); border-radius: 14px; background: var(--color-strip); font: 500 13.5px/1.5 var(--font-sans); }
+    .pop .chips a { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
+    .pop .chips a:hover, .pop .chips a:focus-visible { border-bottom-color: #c9f24b; box-shadow: 0 2px 0 #c9f24b; outline: none; }
+
+    html[data-motion="static"] [data-motion-controls],
+    html[data-motion="static"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="static"] [data-motion-item] {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+      transition: none !important;
+    }
+    html[data-motion="step"] [data-motion-controls],
+    html[data-motion="step"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="step"] [data-motion-item] {
+      animation: none !important;
+      transition: none !important;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .001ms !important;
+      }
+      [data-motion-item] { opacity: 1 !important; transform: none !important; }
+      [data-motion-decorative] { display: none !important; }
+      [data-motion-controls] { display: none !important; }
+    }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      .topbar, .theme { display: none !important; }
+      [data-motion-controls], [data-motion-decorative] { display: none !important; }
+      [data-motion-item] {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+        transition: none !important;
+      }
+      .motion-ready .card { display: block; }
+      .pop { display: none !important; }
+    }
+
+    /* System Design Primer diagram additions. */
+    .sys-arrow { fill: none; stroke: var(--color-muted); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .sys-dash { fill: none; stroke: var(--color-muted); stroke-width: 2.5; stroke-dasharray: 9 7; stroke-linecap: round; }
+    .sys-box { stroke: #101a2e; stroke-width: 3; }
+    .sys-text { fill: #101a2e; font: 700 22px var(--font-sans); pointer-events: none; }
+    .sys-small { fill: #101a2e; font: 700 18px var(--font-sans); pointer-events: none; }
+    .sys-copy { stroke: #101a2e; stroke-width: 3; opacity: 1; }
+    .sys-frame { fill: none; stroke: var(--color-muted); stroke-width: 2.5; stroke-dasharray: 9 7; }
+    .sys-frame-label { fill: var(--color-paper); }
+    .sys-frame-text { fill: var(--color-muted); font: 700 16px var(--font-mono); letter-spacing: .08em; }
+    .edge-label-bg { fill: var(--color-paper); opacity: .98; }
+    .edge-label { fill: var(--color-muted); font: 600 14px var(--font-mono); }
+    .step-badge { fill: var(--color-tag); stroke: var(--color-ink); stroke-width: 2; }
+    .step-badge-t { fill: #101a2e; font: 700 14px var(--font-sans); }
+    .cyl { stroke: #101a2e; stroke-width: 3; fill: #f5ef7a; }
+    .cyl-back { stroke: #101a2e; stroke-width: 3; }
+  </style>
+</head>
+<body>
+  <main id="top" data-motion-root tabindex="-1" data-motion-mode="step" data-step-count="6" data-step-current="6" data-frame="static" data-static-frame="complete">
+    <div class="topbar">
+      <fieldset class="theme"><legend>Theme</legend><input type="radio" name="theme" id="t-auto" checked><label for="t-auto">◐ Auto</label><input type="radio" name="theme" id="t-dark"><label for="t-dark">● Dark</label><input type="radio" name="theme" id="t-light"><label for="t-light">○ Light</label></fieldset>
+    </div>
+    <p class="eyebrow">Interactive diagram · architecture</p>
+    <h1 class="sr-only-h">Design a system that scales to millions of users on AWS</h1>
+    <!-- GENERATED:START -->
+<div class="diagram-container"><svg viewBox="0 0 1447 1650" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="scaling-aws-title scaling-aws-desc">
+<title id="scaling-aws-title">AWS scaling architecture flow</title>
+<desc id="scaling-aws-desc">A client uses DNS, a CDN, a load balancer, web servers, queues, caches, SQL replicas, NoSQL, and object storage as the service scales.</desc>
+<defs><marker id="mk" markerWidth="12" markerHeight="10" refX="11" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path class="mkp" d="M0,0 L12,5 L0,10 Z"/></marker></defs>
+<rect class="bg" width="1447" height="1650"/>
+<g aria-label="AWS scaling architecture">
+<rect x="310" y="51" width="455" height="87" rx="4" fill="#c9f24b" opacity=".82"/>
+<text class="title" x="80" y="118"><tspan>Design </tspan><tspan class="b" x="326">Scaling AWS</tspan></text>
+<text class="txt-m" x="80" y="158" style="font-size:15px">Diagram after donnemartin/system-design-primer · CC BY 4.0</text>
+<g data-motion-item data-step="1" aria-label="Step 1 of 6: Front door connectors"><path class="sys-arrow" d="M880,235 H1030" marker-end="url(#mk)"/><path class="sys-arrow" d="M855,270 V375 H1030" marker-end="url(#mk)"/><path class="sys-arrow" d="M785,270 V470" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="916" y="205" width="73" height="24" rx="3"/><text class="edge-label" x="924" y="222">resolve</text></g><g><rect class="edge-label-bg" x="855" y="380" width="114" height="24" rx="3"/><text class="edge-label" x="863" y="397">static files</text></g><g><rect class="edge-label-bg" x="704" y="348" width="57" height="24" rx="3"/><text class="edge-label" x="712" y="365">HTTPS</text></g></g>
+<g data-motion-item data-step="2" aria-label="Step 2 of 6: Spread the load connectors"><path class="sys-arrow" d="M800,576 V650" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="3" aria-label="Step 3 of 6: Serve read-heavy traffic connectors"><path class="sys-arrow" d="M910,690 H1065 V820" marker-end="url(#mk)"/><path class="sys-arrow" d="M1065,902 V1050" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="4" aria-label="Step 4 of 6: Run work asynchronously connectors"><path class="sys-arrow" d="M690,690 H465 V820" marker-end="url(#mk)"/><path class="sys-arrow" d="M370,858 H316" marker-end="url(#mk)"/><path class="sys-arrow" d="M195,922 V1010" marker-end="url(#mk)"/><path class="sys-arrow" d="M465,922 V1010" marker-end="url(#mk)"/><path class="sys-arrow" d="M370,1048 H316" marker-end="url(#mk)"/><path class="sys-arrow" d="M195,1112 V1260 H510" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="5" aria-label="Step 5 of 6: Store and scale data connectors"><path class="sys-arrow" d="M800,730 V1050" marker-end="url(#mk)"/><path class="sys-dash" d="M880,1098 H995" marker-end="url(#mk)"/><path class="sys-arrow" d="M1125,375 H1390 V1060 H1330 V1115" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="1" aria-label="Step 1 of 6: Front door components"><a class="box-link" href="#box-client" aria-label="Client: open explanation"><rect class="sys-box" x="690" y="200" width="190" height="70" rx="2" fill="#3ddc4a"/><text class="sys-small" text-anchor="middle"><tspan x="785" y="241">Client</tspan></text><rect class="hit" x="686" y="196" width="198" height="78"/></a><a class="box-link" href="#box-dns" aria-label="DNS: open explanation"><rect class="sys-box" x="1030" y="200" width="190" height="70" rx="2" fill="#d6f57a"/><text class="sys-small" text-anchor="middle"><tspan x="1125" y="241">DNS</tspan></text><rect class="hit" x="1026" y="196" width="198" height="78"/></a><a class="box-link" href="#box-cdn" aria-label="CDN: open explanation"><rect class="sys-box" x="1030" y="340" width="190" height="70" rx="2" fill="#7cd0f5"/><text class="sys-small" text-anchor="middle"><tspan x="1125" y="381">CDN</tspan></text><rect class="hit" x="1026" y="336" width="198" height="78"/></a><a href="#pop-1" class="box-link" aria-label="Step 1: Front door"><rect class="step-badge" x="1235" y="221" width="118" height="28" rx="14"/><text class="step-badge-t" x="1247" y="240">1 · Front door</text></a></g>
+<g data-motion-item data-step="2" aria-label="Step 2 of 6: Spread the load components"><a class="box-link" href="#box-load-balancer" aria-label="Load Balancer: open explanation"><rect class="sys-copy" x="716" y="496" width="220" height="80" rx="2" fill="#d688c7"/><rect class="sys-copy" x="703" y="483" width="220" height="80" rx="2" fill="#d688c7"/><rect class="sys-box" x="690" y="470" width="220" height="80" rx="2" fill="#f39ae2"/><text class="sys-small" text-anchor="middle"><tspan x="800" y="517">Load Balancer</tspan></text><rect class="hit" x="686" y="466" width="228" height="88"/></a><a class="box-link" href="#box-web-server" aria-label="Web Server: open explanation"><rect class="sys-copy" x="716" y="676" width="220" height="80" rx="2" fill="#c89e33"/><rect class="sys-copy" x="703" y="663" width="220" height="80" rx="2" fill="#c89e33"/><rect class="sys-box" x="690" y="650" width="220" height="80" rx="2" fill="#e3b33a"/><text class="sys-small" text-anchor="middle"><tspan x="800" y="697">Web Server</tspan></text><rect class="hit" x="686" y="646" width="228" height="88"/></a><a href="#pop-2" class="box-link" aria-label="Step 2: Spread the load"><rect class="step-badge" x="952" y="492" width="158" height="28" rx="14"/><text class="step-badge-t" x="964" y="511">2 · Spread the load</text></a></g>
+<g data-motion-item data-step="4" aria-label="Step 4 of 6: Async work components"><a class="box-link" href="#box-worker-service" aria-label="Worker Service: open explanation"><rect class="sys-copy" x="126" y="846" width="190" height="76" rx="2" fill="#dab66f"/><rect class="sys-copy" x="113" y="833" width="190" height="76" rx="2" fill="#dab66f"/><rect class="sys-box" x="100" y="820" width="190" height="76" rx="2" fill="#f8cf7e"/><text class="sys-small" text-anchor="middle"><tspan x="195" y="853">Worker</tspan><tspan x="195" y="877">Service</tspan></text><rect class="hit" x="96" y="816" width="198" height="84"/></a><a class="box-link" href="#box-queue" aria-label="Queue: open explanation"><rect class="sys-copy" x="396" y="846" width="190" height="76" rx="2" fill="#66d1ba"/><rect class="sys-copy" x="383" y="833" width="190" height="76" rx="2" fill="#66d1ba"/><rect class="sys-box" x="370" y="820" width="190" height="76" rx="2" fill="#74edd3"/><text class="sys-small" text-anchor="middle"><tspan x="465" y="863">Queue</tspan></text><rect class="hit" x="366" y="816" width="198" height="84"/></a><a href="#pop-4" class="box-link" aria-label="Step 4: Async work"><rect class="step-badge" x="370" y="940" width="118" height="28" rx="14"/><text class="step-badge-t" x="382" y="959">4 · Async work</text></a></g>
+<g data-motion-item data-step="6" aria-label="Step 6 of 6: Scale async capacity"><a class="box-link" href="#box-worker-service-2" aria-label="Worker Service replica: open explanation"><rect class="sys-copy" x="126" y="1036" width="190" height="76" rx="2" fill="#dab66f"/><rect class="sys-copy" x="113" y="1023" width="190" height="76" rx="2" fill="#dab66f"/><rect class="sys-box" x="100" y="1010" width="190" height="76" rx="2" fill="#f8cf7e"/><text class="sys-small" text-anchor="middle"><tspan x="195" y="1043">Worker</tspan><tspan x="195" y="1067">Service</tspan></text><rect class="hit" x="96" y="1006" width="198" height="84"/></a><a class="box-link" href="#box-queue-2" aria-label="Queue replica: open explanation"><rect class="sys-copy" x="396" y="1036" width="190" height="76" rx="2" fill="#66d1ba"/><rect class="sys-copy" x="383" y="1023" width="190" height="76" rx="2" fill="#66d1ba"/><rect class="sys-box" x="370" y="1010" width="190" height="76" rx="2" fill="#74edd3"/><text class="sys-small" text-anchor="middle"><tspan x="465" y="1053">Queue</tspan></text><rect class="hit" x="366" y="1006" width="198" height="84"/></a><a href="#pop-6" class="box-link" aria-label="Step 6: Scale async capacity"><rect class="step-badge" x="369" y="1110" width="174" height="28" rx="14"/><text class="step-badge-t" x="381" y="1129">6 · Scale async work</text></a></g>
+<g data-motion-item data-step="3" aria-label="Step 3 of 6: Serve read-heavy traffic components"><a class="box-link" href="#box-memory-cache" aria-label="Memory Cache: open explanation"><rect class="sys-copy" x="986" y="846" width="210" height="80" rx="2" fill="#d88f59"/><rect class="sys-copy" x="973" y="833" width="210" height="80" rx="2" fill="#d88f59"/><rect class="sys-box" x="960" y="820" width="210" height="80" rx="2" fill="#f6a265"/><text class="sys-small" text-anchor="middle"><tspan x="1065" y="867">Memory Cache</tspan></text><rect class="hit" x="956" y="816" width="218" height="88"/></a><a href="#pop-3" class="box-link" aria-label="Step 3: Read scaling"><rect class="step-badge" x="1212" y="846" width="126" height="28" rx="14"/><text class="step-badge-t" x="1224" y="865">3 · Read scaling</text></a></g>
+<g data-motion-item data-step="5" aria-label="Step 5 of 6: Store and scale data components"><rect class="sys-frame" x="654" y="1032" width="570" height="198" rx="8"/><a class="box-link" href="#box-nosql" aria-label="NoSQL: open explanation"><path class="cyl" d="M510,1260 C510,1253 670,1253 670,1260 V1335 C670,1356 510,1356 510,1335 Z"/><ellipse class="cyl" cx="590" cy="1260" rx="80" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="590" y="1305">NoSQL</tspan></text><rect class="hit" x="506" y="1242" width="168" height="118"/></a><a class="box-link" href="#box-sql-write" aria-label="SQL Write Master–Slave: open explanation"><path class="cyl-back" fill="#d8d26b" d="M703,1063 C703,1056 893,1056 893,1063 V1138 C893,1159 703,1159 703,1138 Z"/><ellipse class="cyl-back" fill="#d8d26b" cx="798" cy="1063" rx="95" ry="14"/><path class="cyl" d="M690,1050 C690,1043 880,1043 880,1050 V1125 C880,1146 690,1146 690,1125 Z"/><ellipse class="cyl" cx="785" cy="1050" rx="95" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="785" y="1084">SQL Write</tspan><tspan x="785" y="1110">Master–Slave</tspan></text><rect class="hit" x="686" y="1032" width="212" height="131"/></a><a class="box-link" href="#box-sql-read" aria-label="SQL Read Replicas: open explanation"><path class="cyl-back" fill="#d8d26b" d="M1021,1076 C1021,1069 1211,1069 1211,1076 V1151 C1211,1172 1021,1172 1021,1151 Z"/><ellipse class="cyl-back" fill="#d8d26b" cx="1116" cy="1076" rx="95" ry="14"/><path class="cyl-back" fill="#d8d26b" d="M1008,1063 C1008,1056 1198,1056 1198,1063 V1138 C1198,1159 1008,1159 1008,1138 Z"/><ellipse class="cyl-back" fill="#d8d26b" cx="1103" cy="1063" rx="95" ry="14"/><path class="cyl" d="M995,1050 C995,1043 1185,1043 1185,1050 V1125 C1185,1146 995,1146 995,1125 Z"/><ellipse class="cyl" cx="1090" cy="1050" rx="95" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="1090" y="1084">SQL Read</tspan><tspan x="1090" y="1110">Replicas</tspan></text><rect class="hit" x="991" y="1032" width="224" height="144"/></a><a class="box-link" href="#box-object-store" aria-label="Object Store: open explanation"><path class="cyl" d="M1250,1115 C1250,1108 1410,1108 1410,1115 V1190 C1410,1211 1250,1211 1250,1190 Z"/><ellipse class="cyl" cx="1330" cy="1115" rx="80" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="1330" y="1150">Object</tspan><tspan x="1330" y="1176">Store</tspan></text><rect class="hit" x="1246" y="1097" width="168" height="118"/></a><a class="box-link" href="#box-sharding" aria-label="Sharding: open explanation"><rect class="sys-frame" x="60" y="1320" width="430" height="135" rx="8"/><rect class="sys-frame-label" x="76" y="1308" width="106" height="24"/><text class="sys-frame-text" x="84" y="1326">SHARDING</text></a><a class="box-link" href="#box-sharding" aria-label="Customers A–M SQL: open explanation"><path class="cyl" d="M82,1360 C82,1353 252,1353 252,1360 V1425 C252,1446 82,1446 82,1425 Z"/><ellipse class="cyl" cx="167" cy="1360" rx="85" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="167" y="1393">Customers A–M</tspan><tspan x="167" y="1418">SQL</tspan></text><rect class="hit" x="78" y="1342" width="178" height="108"/></a><a class="box-link" href="#box-sharding" aria-label="Customers N–Z SQL: open explanation"><path class="cyl" d="M282,1360 C282,1353 452,1353 452,1360 V1425 C452,1446 282,1446 282,1425 Z"/><ellipse class="cyl" cx="367" cy="1360" rx="85" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="367" y="1393">Customers N–Z</tspan><tspan x="367" y="1418">SQL</tspan></text><rect class="hit" x="278" y="1342" width="178" height="108"/></a><a class="box-link" href="#box-federation" aria-label="Federation: open explanation"><rect class="sys-frame" x="60" y="1485" width="430" height="135" rx="8"/><rect class="sys-frame-label" x="76" y="1473" width="128" height="24"/><text class="sys-frame-text" x="84" y="1491">FEDERATION</text></a><a class="box-link" href="#box-federation" aria-label="Customers SQL: open explanation"><path class="cyl" d="M82,1525 C82,1518 252,1518 252,1525 V1590 C252,1611 82,1611 82,1590 Z"/><ellipse class="cyl" cx="167" cy="1525" rx="85" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="167" y="1558">Customers</tspan><tspan x="167" y="1583">SQL</tspan></text><rect class="hit" x="78" y="1507" width="178" height="108"/></a><a class="box-link" href="#box-federation" aria-label="Products SQL: open explanation"><path class="cyl" d="M282,1525 C282,1518 452,1518 452,1525 V1590 C452,1611 282,1611 282,1590 Z"/><ellipse class="cyl" cx="367" cy="1525" rx="85" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="367" y="1558">Products</tspan><tspan x="367" y="1583">SQL</tspan></text><rect class="hit" x="278" y="1507" width="178" height="108"/></a><a href="#pop-5" class="box-link" aria-label="Step 5: Store and scale data"><rect class="step-badge" x="900" y="1238" width="182" height="28" rx="14"/><text class="step-badge-t" x="912" y="1257">5 · Store &amp; scale data</text></a></g>
+</g></svg>
+<article class="pop phase-pop pl" id="pop-1" style="--x: 89.4%; --y: 14.2%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>1 · Entry</h2><p class="goal">DNS maps the domain to the public endpoint. A CDN moves static content closer to the client.</p></article>
+<article class="pop phase-pop" id="pop-2" style="--x: 71.3%; --y: 30.7%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>2 · Distribute requests</h2><p class="goal">A load balancer distributes traffic across web servers so the web tier can scale horizontally.</p></article>
+<article class="pop phase-pop pl" id="pop-3" style="--x: 88.1%; --y: 52.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>3 · Serve read-heavy traffic</h2><p class="goal">Read requests use memory first, then SQL read replicas, reducing load on the write master.</p></article>
+<article class="pop phase-pop pu" id="pop-4" style="--x: 29.6%; --y: 57.8%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>4 · Run work asynchronously</h2><p class="goal">A queue decouples slow jobs from the request path. A worker pulls and completes them later.</p></article>
+<article class="pop phase-pop pu" id="pop-5" style="--x: 68.5%; --y: 75.9%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>5 · Store and scale data</h2><p class="goal">SQL replication, object storage, sharding, and federation help the data tier grow.</p></article>
+<article class="pop phase-pop pu" id="pop-6" style="--x: 47.6%; --y: 62.7%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>6 · Scale async capacity</h2><p class="goal">Another queue and worker service add capacity for background jobs.</p></article>
+<article class="pop box-card" id="box-client" style="--x: 54.2%; --y: 14.2%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Client</h2><p class="phase-tag"><a href="#pop-1">Step 1 · Entry</a></p><h3>What it is</h3><p>The user or program making a read or write request.</p><h3>Its job here</h3><p>It resolves the service name with DNS or requests static content from the CDN. Dynamic traffic goes to the Load Balancer.</p><h3>Trade-off</h3><p>The service must secure incoming HTTP, HTTPS, and SSH access.</p><h3>In the primer</h3><p><a href="../topics/communication.html#hypertext-transfer-protocol-http" target="_top">Communication › HTTP →</a></p></article>
+<article class="pop box-card pl" id="box-dns" style="--x: 77.7%; --y: 14.2%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>DNS</h2><p class="phase-tag"><a href="#pop-1">Step 1 · Entry</a></p><h3>What it is</h3><p>DNS maps a domain to a public IP address.</p><h3>Its job here</h3><p>It receives the client lookup and directs the client to the public endpoint. The client can then reach the CDN or Load Balancer.</p><h3>Examples</h3><ul class="chips"><li>Route 53</li></ul><h3>Trade-off</h3><p>DNS lets a domain point to a new IP for failover.</p><h3>In the primer</h3><p><a href="../topics/domain-name-system.html#disadvantages-dns" target="_top">Domain name system › Disadvantages →</a></p></article>
+<article class="pop box-card pl" id="box-cdn" style="--x: 77.7%; --y: 22.7%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>CDN</h2><p class="phase-tag"><a href="#pop-1">Step 1 · Entry</a></p><h3>What it is</h3><p>A content delivery network serves static and some dynamic content closer to users.</p><h3>Its job here</h3><p>It receives static requests from the Client and serves files from Object Store. This reduces load and latency for the Web Server.</p><h3>Examples</h3><ul class="chips"><li>CloudFront</li></ul><h3>Trade-off</h3><p>Static content moved to a CDN increases system complexity.</p><h3>In the primer</h3><p><a href="../topics/content-delivery-network.html#disadvantages-cdn" target="_top">Content delivery network › Disadvantages →</a></p></article>
+<article class="pop box-card" id="box-load-balancer" style="--x: 55.3%; --y: 30.9%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Load Balancer</h2><p class="phase-tag"><a href="#pop-2">Step 2 · Distribute requests</a></p><h3>What it is</h3><p>A component that distributes incoming traffic across servers.</p><h3>Its job here</h3><p>It receives client traffic and hands requests to Web Server instances. It can terminate SSL before traffic reaches the servers.</p><h3>Examples</h3><ul class="chips"><li>ELB</li><li>HAProxy</li></ul><h3>Trade-off</h3><p>Horizontal scaling adds components and operational complexity.</p><h3>In the primer</h3><p><a href="../topics/load-balancer.html#horizontal-scaling" target="_top">Load balancer › Horizontal scaling →</a></p></article>
+<article class="pop box-card" id="box-web-server" style="--x: 55.3%; --y: 41.8%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Web Server</h2><p class="phase-tag"><a href="#pop-2">Step 2 · Distribute requests</a></p><h3>What it is</h3><p>The public compute tier that receives and processes requests.</p><h3>Its job here</h3><p>It receives work from the Load Balancer. It reads through Memory Cache, sends writes to the SQL Write Master–Slave, or adds background jobs to Queue.</p><h3>Examples</h3><ul class="chips"><li>EC2</li></ul><h3>Trade-off</h3><p>Vertical scaling can become expensive and has no redundancy or failover.</p><h3>In the primer</h3><p><a href="../topics/reverse-proxy-web-server.html#load-balancer-vs-reverse-proxy" target="_top">Reverse proxy › Load balancer vs reverse proxy →</a></p></article>
+<article class="pop box-card" id="box-worker-service" style="--x: 13.5%; --y: 52.6%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Worker Service</h2><p class="phase-tag"><a href="#pop-4">Step 4 · Run work asynchronously</a></p><h3>What it is</h3><p>A worker that runs jobs outside the request path.</p><h3>Its job here</h3><p>It pulls a job from Queue and creates a thumbnail or updates a Database. It can then store the thumbnail in Object Store.</p><h3>Examples</h3><ul class="chips"><li>EC2</li><li>Lambda</li></ul><h3>Trade-off</h3><p>Queues add delays and complexity.</p><h3>In the primer</h3><p><a href="../topics/asynchronism.html#task-queues" target="_top">Asynchronism › Task queues →</a></p></article>
+<article class="pop box-card" id="box-queue" style="--x: 32.1%; --y: 52.6%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Queue</h2><p class="phase-tag"><a href="#pop-4">Step 4 · Run work asynchronously</a></p><h3>What it is</h3><p>A queue holds jobs until a worker can process them.</p><h3>Its job here</h3><p>Web Server adds background work here. Worker Service pulls the next job and hands results to NoSQL or Object Store.</p><h3>Examples</h3><ul class="chips"><li>SQS</li></ul><h3>Trade-off</h3><p>Queues add delays and complexity.</p><h3>In the primer</h3><p><a href="../topics/asynchronism.html#message-queues" target="_top">Asynchronism › Message queues →</a></p></article>
+<article class="pop box-card pu" id="box-worker-service-2" style="--x: 13.5%; --y: 64.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Worker Service</h2><p class="phase-tag"><a href="#pop-6">Step 6 · Scale async capacity</a></p><h3>What it is</h3><p>Another worker that runs jobs outside the request path.</p><h3>Its job here</h3><p>It pulls jobs from the second Queue. It increases asynchronous processing capacity with the first Worker Service.</p><h3>Trade-off</h3><p>Queues add delays and complexity.</p><h3>In the primer</h3><p><a href="../topics/asynchronism.html#task-queues" target="_top">Asynchronism › Task queues →</a></p></article>
+<article class="pop box-card pu" id="box-queue-2" style="--x: 32.1%; --y: 64.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Queue</h2><p class="phase-tag"><a href="#pop-6">Step 6 · Scale async capacity</a></p><h3>What it is</h3><p>Another queue that holds background jobs.</p><h3>Its job here</h3><p>It accepts work and hands the next job to the second Worker Service. It lets the asynchronous layer scale independently.</p><h3>Trade-off</h3><p>Queues add delays and complexity.</p><h3>In the primer</h3><p><a href="../topics/asynchronism.html#message-queues" target="_top">Asynchronism › Message queues →</a></p></article>
+<article class="pop box-card pu" id="box-nosql" style="--x: 40.8%; --y: 76.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>NoSQL</h2><p class="phase-tag"><a href="#pop-4">Step 4 · Run work asynchronously</a></p><h3>What it is</h3><p>A database used for appropriate data outside the relational store.</p><h3>Its job here</h3><p>Worker Service can update this database after pulling a Queue job. It holds data that does not need the SQL write path.</p><h3>Examples</h3><ul class="chips"><li>DynamoDB</li></ul><h3>Trade-off</h3><p>Choose SQL or NoSQL based on the data and access needs.</p><h3>In the primer</h3><p><a href="../topics/database.html#nosql" target="_top">Database › NoSQL →</a></p></article>
+<article class="pop box-card pl" id="box-memory-cache" style="--x: 73.6%; --y: 52.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Memory Cache</h2><p class="phase-tag"><a href="#pop-3">Step 3 · Serve read-heavy traffic</a></p><h3>What it is</h3><p>An in-memory store for frequently accessed content and session data.</p><h3>Its job here</h3><p>Web Server checks it first for reads. On a miss, the request continues to SQL Read Replicas.</p><h3>Examples</h3><ul class="chips"><li>ElastiCache</li></ul><h3>Trade-off</h3><p>Try the MySQL cache before adding a memory cache.</p><h3>In the primer</h3><p><a href="../topics/cache.html#application-caching" target="_top">Cache › Application caching →</a></p></article>
+<article class="pop box-card pu" id="box-sql-write" style="--x: 54.2%; --y: 63.6%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>SQL Write Master–Slave</h2><p class="phase-tag"><a href="#pop-5">Step 5 · Store and scale data</a></p><h3>What it is</h3><p>The relational database that accepts writes and replicates them to slaves.</p><h3>Its job here</h3><p>Web Server sends writes here. Changes replicate to SQL Read Replicas for read traffic.</p><h3>Examples</h3><ul class="chips"><li>MySQL</li><li>RDS</li></ul><h3>Trade-off</h3><p>One write master can become a bottleneck as writes increase.</p><h3>In the primer</h3><p><a href="../topics/database.html#master-slave-replication" target="_top">Database › Master-slave replication →</a></p></article>
+<article class="pop box-card pl pu" id="box-sql-read" style="--x: 75.3%; --y: 63.6%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>SQL Read Replicas</h2><p class="phase-tag"><a href="#pop-3">Step 3 · Serve read-heavy traffic</a></p><h3>What it is</h3><p>Replica databases that serve reads after the write master copies changes.</p><h3>Its job here</h3><p>Memory Cache misses reach these replicas. They reduce read load on SQL Write Master–Slave.</p><h3>Examples</h3><ul class="chips"><li>MySQL</li></ul><h3>Trade-off</h3><p>Read replicas add data-copying and routing work.</p><h3>In the primer</h3><p><a href="../topics/database.html#master-slave-replication" target="_top">Database › Master-slave replication →</a></p></article>
+<article class="pop box-card pl pu" id="box-object-store" style="--x: 92.0%; --y: 67.6%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Object Store</h2><p class="phase-tag"><a href="#pop-5">Step 5 · Store and scale data</a></p><h3>What it is</h3><p>Storage for static files separate from the web server.</p><h3>Its job here</h3><p>CDN serves files from it. Web Server and Worker Service can store user files and thumbnails here.</p><h3>Examples</h3><ul class="chips"><li>S3</li></ul><h3>Trade-off</h3><p>Separate storage requires Web Server changes and adds complexity.</p></article>
+<article class="pop box-card pu" id="box-sharding" style="--x: 17.9%; --y: 84.0%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Sharding</h2><p class="phase-tag"><a href="#pop-5">Step 5 · Store and scale data</a></p><h3>What it is</h3><p>A pattern that splits one data set across databases.</p><h3>Its job here</h3><p>Customers A–M and Customers N–Z hold different ranges. The application selects the right shard for each operation.</p><h3>Trade-off</h3><p>Sharding is an additional SQL scaling pattern to consider as data grows.</p><h3>In the primer</h3><p><a href="../topics/database.html#sharding" target="_top">Database › Sharding →</a></p></article>
+<article class="pop box-card pu" id="box-federation" style="--x: 17.9%; --y: 94.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Federation</h2><p class="phase-tag"><a href="#pop-5">Step 5 · Store and scale data</a></p><h3>What it is</h3><p>A pattern that splits databases by function.</p><h3>Its job here</h3><p>Customers SQL and Products SQL keep different functions separate. The application selects the database for the operation.</p><h3>Trade-off</h3><p>Federation is an additional SQL scaling pattern to consider as data grows.</p><h3>In the primer</h3><p><a href="../topics/database.html#federation" target="_top">Database › Federation →</a></p></article>
+</div>
+<!-- GENERATED:END -->
+    <div data-motion-controls role="group" aria-label="Diagram playback controls">
+      <button type="button" data-motion-action="prev">Previous</button>
+      <button type="button" data-motion-action="play" aria-pressed="false">Play</button>
+      <button type="button" data-motion-action="pause" aria-pressed="true">Pause</button>
+      <button type="button" data-motion-action="next">Next</button>
+      <button type="button" data-motion-action="replay">Replay</button>
+      <span class="keyboard-help">←/→ step · Space play/pause · R replay · Home/End jump</span>
+      <span data-motion-status-visible aria-hidden="true">Step <span data-motion-step-label>6</span> of 6</span>
+    </div>
+    <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
+    <noscript><p>Animation controls require JavaScript. The complete final diagram is shown above.</p></noscript>
+    <i id="close-card" aria-hidden="true"></i>
+    <section class="panel" id="panel" aria-label="Step detail"><div class="panel-head"><p>Detail · follows playback, or click any box or step to pin it</p><a class="follow" href="#close-card">Close · follow playback</a></div><p class="hint">Click any box for an explanation, or use Next or Play to walk through the six steps.</p>
+      <article class="card" id="detail-1"><h2>1 · Entry</h2><p class="goal">DNS maps the domain and a CDN can serve static content.</p><p>The client reaches a public endpoint before it sends a request.</p></article>
+      <article class="card" id="detail-2"><h2>2 · Distribute requests</h2><p class="goal">A load balancer distributes traffic across Web Server instances.</p><p>The web tier can then scale horizontally and avoid a single point of failure.</p></article>
+      <article class="card" id="detail-3"><h2>3 · Serve read-heavy traffic</h2><p class="goal">Memory Cache handles frequent reads before SQL Read Replicas.</p><p>This lowers pressure on the SQL write master.</p></article>
+      <article class="card" id="detail-4"><h2>4 · Run work asynchronously</h2><p class="goal">Queue holds background work until Worker Service can process it.</p><p>This separates slow jobs, such as thumbnail creation, from the request path.</p></article>
+      <article class="card" id="detail-5"><h2>5 · Store and scale data</h2><p class="goal">SQL replication, Object Store, sharding, and federation support the growing data tier.</p><p>The data architecture evolves as storage, reads, and writes become bottlenecks.</p></article>
+      <article class="card" id="detail-6"><h2>6 · Scale async capacity</h2><p class="goal">A second queue and worker service increase background-job capacity.</p><p>Long-running work can scale separately from request processing.</p></article>
+    </section>
+  </main>
+
+  <script data-diagram-controls>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const staticOverride = params.get('motion') === 'static' || document.documentElement.dataset.motion === 'static';
+      const requestedStep = params.get('step');
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      document.fonts.ready.then(() => { document.documentElement.dataset.fontsReady = 'true'; });
+
+      document.querySelectorAll('[data-motion-root]').forEach((root) => {
+        const count = Number(root.dataset.stepCount);
+        const hold = parseFloat(getComputedStyle(root).getPropertyValue('--motion-hold')) || 720;
+        const parsedStep = requestedStep !== null && /^\d+$/.test(requestedStep) ? Number(requestedStep) : null;
+        const exactStep = params.get('motion') === 'step' && Number.isSafeInteger(parsedStep) && parsedStep >= 0 && parsedStep <= count ? parsedStep : null;
+        const items = [...root.querySelectorAll('[data-motion-item]')];
+        const labels = Array.from({ length: count + 1 }, (_, index) => index === 0
+          ? 'Ready'
+          : items.filter((item) => !item.hasAttribute('data-motion-decorative') && Number(item.dataset.step) === index)
+              .map((item) => item.getAttribute('aria-label')).join('; '));
+        const controls = root.querySelector('[data-motion-controls]');
+        const status = root.querySelector('[data-motion-status]');
+        const visibleStep = root.querySelector('[data-motion-step-label]');
+        let step = count;
+        let timer = 0;
+        let playing = false;
+        let stepBeforeReduce = 0;
+        let resumeAfterReduce = root.dataset.motionMode === 'reveal';
+
+        const buttons = (action) => controls.querySelector(`[data-motion-action="${action}"]`);
+        const clearClock = () => { window.clearTimeout(timer); timer = 0; };
+        const announce = () => { status.textContent = `Step ${step} of ${count}: ${labels[step] || 'Complete'}`; };
+        const setControlsAvailable = (available) => {
+          controls.hidden = !available;
+          controls.setAttribute('aria-hidden', String(!available));
+          controls.dataset.playbackDisabled = String(!available);
+          controls.querySelectorAll('button').forEach((control) => { control.disabled = !available; });
+        };
+
+        function render(next, userInitiated = false) {
+          step = Math.max(0, Math.min(count, next));
+          root.dataset.stepCurrent = String(step);
+          root.dataset.frame = step === count ? 'end' : step === 0 ? 'start' : 'step';
+          items.forEach((item) => {
+            const itemStep = Number(item.dataset.step);
+            item.classList.toggle('is-visible', itemStep <= step);
+            item.classList.toggle('is-current', itemStep === step);
+          });
+          if (visibleStep) visibleStep.textContent = String(step);
+          const unavailable = controls.dataset.playbackDisabled === 'true';
+          buttons('prev').disabled = unavailable || step === 0;
+          buttons('next').disabled = unavailable || step === count;
+          if (userInitiated) announce();
+        }
+
+        function pause(userInitiated = false) {
+          clearClock();
+          playing = false;
+          root.classList.remove('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'false');
+          buttons('pause').setAttribute('aria-pressed', 'true');
+          if (userInitiated) status.textContent = `Paused at step ${step} of ${count}`;
+        }
+
+        function finish() {
+          pause(false);
+          root.dataset.frame = 'end';
+          status.textContent = `Complete · step ${count} of ${count}`;
+        }
+
+        function tick() {
+          if (!playing) return;
+          if (step >= count) { finish(); return; }
+          render(step + 1, false);
+          if (step >= count) { finish(); return; }
+          timer = window.setTimeout(tick, hold);
+        }
+
+        function play(fromStart = false, userInitiated = false) {
+          clearClock();
+          if (fromStart || step >= count) render(0, userInitiated);
+          playing = true;
+          root.classList.add('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'true');
+          buttons('pause').setAttribute('aria-pressed', 'false');
+          timer = window.setTimeout(tick, hold);
+        }
+
+        controls.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-motion-action]');
+          if (!button) return;
+          const action = button.dataset.motionAction;
+          if (action === 'play') play(false, true);
+          if (action === 'pause') pause(true);
+          if (action === 'replay') play(true, true);
+          if (action === 'prev') { pause(false); render(step - 1, true); }
+          if (action === 'next') { pause(false); render(step + 1, true); }
+        });
+
+        root.addEventListener('keydown', (event) => {
+          if (event.target.matches('input, textarea, select, a[href]')) return;
+          const keys = { ArrowLeft: step - 1, ArrowRight: step + 1, Home: 0, End: count };
+          if (event.code === 'Space' && !event.target.closest('button')) {
+            event.preventDefault();
+            playing ? pause(true) : play(false, true);
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'r') {
+            event.preventDefault();
+            play(true, true);
+            return;
+          }
+          if (!(event.key in keys)) return;
+          event.preventDefault();
+          pause(false);
+          render(keys[event.key], true);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && playing) pause(false);
+        });
+        reduce.addEventListener('change', (event) => {
+          if (event.matches && root.dataset.motionState !== 'reduced') {
+            stepBeforeReduce = step;
+            resumeAfterReduce = playing;
+          }
+          pause(false);
+          if (event.matches) {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'reduced';
+            status.textContent = 'Reduced motion · complete static frame · playback controls unavailable';
+          } else if (staticOverride || root.dataset.motionMode === 'none') {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'static';
+            status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+          } else {
+            delete root.dataset.motionState;
+            if (exactStep !== null) {
+              setControlsAvailable(false);
+              render(exactStep, false);
+              root.dataset.frame = 'step';
+              root.dataset.motionState = 'test';
+              status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+            } else {
+              setControlsAvailable(true);
+              render(stepBeforeReduce, false);
+              status.textContent = `Ready · step ${step} of ${count}`;
+              if (resumeAfterReduce && root.dataset.motionMode === 'reveal') {
+                play(false, false);
+              }
+            }
+            resumeAfterReduce = false;
+          }
+        });
+
+        if (staticOverride) {
+          document.documentElement.dataset.motion = 'static';
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = 'static';
+          status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+        } else if (reduce.matches || root.dataset.motionMode === 'none') {
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = reduce.matches ? 'reduced' : 'static';
+          status.textContent = reduce.matches
+            ? 'Reduced motion · complete static frame · playback controls unavailable'
+            : 'Static frame · complete diagram · playback controls unavailable';
+        } else if (exactStep !== null) {
+          document.documentElement.dataset.motion = 'step';
+          pause(false);
+          setControlsAvailable(false);
+          render(exactStep, false);
+          root.dataset.frame = 'step';
+          root.dataset.motionState = 'test';
+          status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+        } else if (root.dataset.motionMode === 'reveal') {
+          setControlsAvailable(true);
+          render(0, false);
+          play(false, false);
+        } else {
+          pause(false);
+          setControlsAvailable(true);
+          render(0, false);
+          status.textContent = `Ready · step 0 of ${count}`;
+        }
+        root.classList.add('motion-ready');
+      });
+    })();
+  </script>
+</body>
+</html>

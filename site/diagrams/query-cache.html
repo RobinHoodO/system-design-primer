@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="darkreader-lock">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Design a key-value cache to save the results of the most recent web server queries — interactive diagram</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --color-paper: #f6f3ec;
+      --color-panel: #fffdf8;
+      --color-ink: #101a2e;
+      --color-muted: #60708b;
+      --color-soft: #60708b;
+      --color-accent: #ff7961;
+      --color-lime: #c9f24b;
+      --color-link: #96c1ff;
+      --color-link-text: #1d4f9a;
+      --color-rule: #dfe3df;
+      --color-strip: #f0f1ee; --color-pill: #d9ee4a; --color-tag: #eefb82;
+      --tint-coral: #fcd7c6; --tint-blue: #dbe9fb; --tint-lime: #f0fab4; --color-ring-o: #a9bfd0; --color-ring-i: #5aa3f2; --color-diag: #3f7f8c;
+      --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-serif: ui-serif, Georgia, "Times New Roman", serif;
+      --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      --motion-fast: 160ms;
+      --motion-step: 480ms;
+      --motion-hold: 720ms;
+      --motion-total: 5040ms;
+      --motion-ease: cubic-bezier(.2,.8,.2,1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-paper: #11151d; --color-panel: #171c26; --color-ink: #ece8de;
+        --color-muted: #95a0b4; --color-soft: #95a0b4; --color-rule: #2d3543;
+        --color-link-text: #96c1ff; --color-strip: #212836; --color-pill: #b8d63a; --color-tag: #c9f24b;
+        --tint-coral: #5a352b; --tint-blue: #25385a; --tint-lime: #3d4a1d; --color-ring-o: #4b6275; --color-ring-i: #4a8fdc; --color-diag: #6fb3c0;
+      }
+    }
+    :root[data-theme="dark"],
+    :root:has(#t-dark:checked),
+    body:has(#t-dark:checked) {
+      --color-paper: #11151d; --color-panel: #171c26; --color-ink: #ece8de;
+        --color-muted: #95a0b4; --color-soft: #95a0b4; --color-rule: #2d3543;
+        --color-link-text: #96c1ff; --color-strip: #212836; --color-pill: #b8d63a; --color-tag: #c9f24b;
+        --tint-coral: #5a352b; --tint-blue: #25385a; --tint-lime: #3d4a1d; --color-ring-o: #4b6275; --color-ring-i: #4a8fdc; --color-diag: #6fb3c0;
+    }
+    :root[data-theme="light"],
+    :root:has(#t-light:checked),
+    body:has(#t-light:checked) {
+      --color-paper: #f7f7f2; --color-panel: #ffffff; --color-ink: #101a2e;
+        --color-muted: #60708b; --color-soft: #60708b; --color-rule: #dfe3df;
+        --color-link-text: #1d4f9a; --color-strip: #f0f1ee; --color-pill: #d9ee4a; --color-tag: #eefb82;
+        --tint-coral: #fcd7c6; --tint-blue: #dbe9fb; --tint-lime: #f0fab4; --color-ring-o: #a9bfd0; --color-ring-i: #5aa3f2; --color-diag: #3f7f8c;
+    }
+    html:has(#t-dark:checked) { color-scheme: dark; }
+    html:has(#t-light:checked) { color-scheme: light; }
+    html { background: var(--color-paper); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 32px 16px 48px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font-family: var(--font-sans);
+      display: grid;
+      justify-items: center;
+    }
+    [data-motion-root] { width: min(100%, 1000px); max-width: 100%; min-width: 0; outline: none; }
+    .topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 20px;
+    }
+    .back {
+      color: var(--color-link-text); font: 500 14px/1.4 var(--font-sans);
+      min-height: 44px; display: inline-flex; align-items: center;
+    }
+    .back:focus-visible, .node-link:focus-visible, .follow:focus-visible {
+      outline: 3px solid var(--color-accent); outline-offset: 2px;
+    }
+    .theme { display: inline-flex; border: 1px solid var(--color-rule); border-radius: 4px; padding: 0; margin: 0; min-width: 0; }
+    .theme legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    .theme input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .theme label {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 44px; min-height: 44px; padding: 0 12px; cursor: pointer;
+      color: var(--color-muted); font: 600 12px/1 var(--font-sans);
+    }
+    .theme input:checked + label { background: var(--color-ink); color: var(--color-paper); }
+    .theme input:focus-visible + label { outline: 3px solid var(--color-accent); outline-offset: -3px; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    h1.sr-only-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    svg { display: block; width: 100%; min-width: 0; height: auto; }
+    .diagram-container { position: relative; width: 100%; overflow: visible; }
+    .bg { fill: var(--color-paper); }
+    .title { fill: var(--color-ink); font: 400 64px var(--font-sans); letter-spacing: -1px; }
+    .b { fill: #101a2e; font-weight: 800; }
+    .card-box { fill: var(--color-panel); stroke: var(--color-rule); stroke-width: 2; }
+    .card-box.soft { fill: var(--color-strip); stroke: var(--color-rule); }
+    .edge-crm { stroke: #ff9a7a; stroke-width: 3; }
+    .edge-enr { stroke: #5ac8f0; stroke-width: 3; }
+    .strip { fill: var(--color-strip); }
+    .t-coral { fill: var(--tint-coral); }
+    .t-blue { fill: var(--tint-blue); }
+    .t-lime { fill: var(--tint-lime); }
+    .pill { fill: var(--color-panel); stroke: var(--color-pill); stroke-width: 3; transition: stroke-width var(--motion-fast); }
+    .pill-ul { fill: var(--color-pill); opacity: .85; }
+    .pill-t { fill: var(--color-ink); font-weight: 700; font-family: var(--font-sans); letter-spacing: -.5px; }
+    .tag { fill: var(--color-tag); }
+    .tag-t { fill: #101a2e; font: 500 20px var(--font-sans); }
+    .txt { fill: var(--color-ink); font-family: var(--font-sans); }
+    .txt-b { fill: var(--color-ink); font-family: var(--font-sans); font-weight: 700; }
+    .txt-m { fill: var(--color-muted); font-family: var(--font-sans); font-weight: 500; }
+    .ico { fill: var(--color-rule); }
+    .chip-c { fill: var(--color-panel); stroke: var(--color-rule); stroke-width: 3; }
+    .chip-d { fill: var(--color-ink); }
+    .logo-bg { fill: #fff; stroke: var(--color-rule); stroke-width: 0.8; }
+    .ico-l { fill: var(--color-ink); font-family: var(--font-sans); font-weight: 700; pointer-events: none; }
+    .dot-lime { fill: #c9f24b; }
+    .dot-red { fill: #ef4b4b; }
+    .ph { fill: var(--color-strip); stroke: var(--color-rule); }
+    .line { fill: none; stroke: var(--color-ink); stroke-width: 1.6; }
+    .loop { fill: none; stroke: var(--color-ink); stroke-width: 1.6; stroke-dasharray: 5 5; }
+    .rule { stroke: var(--color-rule); stroke-width: 1.5; }
+    .ring-o { fill: none; stroke: var(--color-ring-o); stroke-width: 10; opacity: .35; }
+    .arc-o { fill: none; stroke: var(--color-ring-o); stroke-width: 4; }
+    .arc-i { fill: none; stroke: var(--color-ring-i); stroke-width: 3; }
+    .diag { fill: none; stroke: var(--color-diag); stroke-width: 3; }
+    .mkp { fill: var(--color-ink); }
+    .mko { fill: var(--color-ring-o); }
+    .mki { fill: var(--color-ring-i); }
+    .mkt { fill: var(--color-diag); }
+    .node-link { cursor: pointer; }
+    .node-link:hover .pill { stroke-width: 5; }
+    .motion-ready .is-current .pill { stroke: var(--color-ink); stroke-width: 5; }
+    .motion-ready .is-current .tag { fill: #c9f24b; stroke: var(--color-ink); stroke-width: 2; }
+    .motion-ready[data-frame="step"] [data-motion-item].is-visible:not(.is-current) { opacity: .28; }
+
+    /* Idle state: whole diagram visible. Dimming applies only while stepping or playing. */
+    .motion-ready[data-frame="start"]:not(.is-playing) [data-motion-item] { opacity: 1; transform: none; }
+
+    /* Every box is a link. */
+    .box-link { cursor: pointer; }
+    .hit { fill: transparent; stroke: transparent; stroke-width: 5; }
+    .box-link:is(:hover, :focus-visible) :is(.card-box, .chip-c, .hit, .pill) {
+      stroke: #c9f24b; stroke-width: 5; filter: drop-shadow(0 0 1.5px rgba(16,26,46,.7));
+    }
+    .box-link:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+
+    .motion-ready [data-motion-item] {
+      opacity: .12;
+      transform: translateY(8px);
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity var(--motion-step) var(--motion-ease),
+                  transform var(--motion-step) var(--motion-ease);
+    }
+    .motion-ready [data-motion-item].is-visible,
+    .motion-ready[data-frame="end"] [data-motion-item],
+    .motion-ready[data-frame="static"] [data-motion-item] {
+      opacity: 1;
+      transform: none;
+    }
+
+    [data-motion-controls] {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--color-rule);
+    }
+    .motion-ready [data-motion-controls] { display: flex; }
+    [data-motion-controls][hidden] { display: none !important; }
+    [data-motion-controls] button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-muted);
+      border-radius: 4px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font: 600 12px/1 var(--font-sans);
+      cursor: pointer;
+    }
+    [data-motion-controls] button:hover { border-color: var(--color-accent); }
+    [data-motion-controls] button:focus-visible {
+      outline: 3px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+    [data-motion-controls] button:disabled { cursor: not-allowed; opacity: .45; }
+    .keyboard-help { color: var(--color-muted); font: 400 12px/1.4 var(--font-mono); }
+    [data-motion-status-visible] {
+      margin-left: auto;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+    noscript p {
+      margin: 12px 0 0;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+    }
+
+    /* Detail panel: all cards without JS, follows playback step, or pinned by :target. */
+    .panel { margin-top: 24px; scroll-margin-top: 16px; }
+    .panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .panel-head p { margin: 0; color: var(--color-muted); font: 500 12px/1.4 var(--font-mono); }
+    .follow { color: var(--color-link-text); font: 600 12px/1 var(--font-sans); min-height: 44px; display: inline-flex; align-items: center; }
+    .card {
+      margin: 0 0 12px; padding: 16px; border: 1px solid var(--color-rule); border-radius: 6px;
+      background: var(--color-panel); scroll-margin-top: 16px;
+    }
+    .card h2 { margin: 0 0 4px; font: 400 22px/1.2 var(--font-serif); }
+    .card .goal { margin: 0 0 12px; color: var(--color-muted); font: 400 14px/1.5 var(--font-sans); }
+    .card ul { margin: 0; padding-left: 18px; font: 400 14px/1.6 var(--font-sans); }
+    .card code { font: 500 13px var(--font-mono); }
+    .hint { display: none; color: var(--color-muted); font: 400 14px/1.5 var(--font-sans); }
+    .motion-ready .card { display: none; }
+    .motion-ready[data-step-current="0"] .hint { display: block; }
+    .motion-ready[data-step-current="1"] #detail-1,
+    .motion-ready[data-step-current="2"] #detail-2,
+    .motion-ready[data-step-current="3"] #detail-3,
+    .motion-ready[data-step-current="4"] #detail-4,
+    .motion-ready[data-step-current="5"] #detail-5,
+    .motion-ready[data-step-current="6"] #detail-6,
+    .motion-ready[data-step-current="7"] #detail-7 { display: block; }
+    /* Popup explainers: sit inside the diagram frame, next to the box or pill they explain. */
+    .pop {
+      --w: min(400px, 92%);
+      display: none; position: absolute; z-index: 30; width: var(--w);
+      left: min(calc(var(--x) + 10px), calc(100% - var(--w)));
+      top: var(--y);
+      margin: 0; padding: 20px 22px 22px; border: 1px solid var(--color-rule); border-radius: 14px;
+      background: var(--color-panel); color: var(--color-ink); box-shadow: 0 10px 30px rgba(16,26,46,.28);
+      scroll-margin: 35vh 0;
+    }
+    .pop.pl { left: max(0px, min(calc(var(--x) - var(--w) - 10px), calc(100% - var(--w)))); }
+    .pop.pu { transform: translateY(calc(-100% + 60px)); }  /* lower half: grow upward so it stays in the frame */
+    .pop:target { display: block; border-color: var(--color-accent); }
+    .pop h2 { margin: 0 30px 8px 0; font: 400 22px/1.2 var(--font-serif); }
+    .pop h3 { margin: 16px 0 4px; color: var(--color-muted); font: 600 11px/1.3 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+    .pop p, .pop ul { margin: 0; font: 400 15px/1.55 var(--font-sans); }
+    .pop .goal { margin: 0 0 8px; color: var(--color-muted); font-size: 15px; line-height: 1.55; }
+    .pop ul { padding-left: 18px; }
+    .pop li + li { margin-top: 4px; }
+    .pop code { font: 500 13.5px var(--font-mono); }
+    .pop .phase-tag { margin: 0 0 4px; }
+    .pop-x {
+      position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 16px; color: var(--color-muted); font: 500 16px/1 var(--font-sans); text-decoration: none;
+    }
+    .pop-x:hover { color: var(--color-ink); background: var(--color-strip); }
+    .pop-x:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 1px; }
+    .phase-tag a {
+      display: inline-flex; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 11px;
+      background: var(--color-tag); color: #101a2e; font: 500 11px/1 var(--font-sans); text-decoration: none;
+    }
+    .phase-tag a:hover { outline: 2px solid var(--color-ink); }
+    .phase-tag a:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+    .pop .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .pop .chips li { padding: 3px 11px; border: 1px solid var(--color-rule); border-radius: 14px; background: var(--color-strip); font: 500 13.5px/1.5 var(--font-sans); }
+    .pop .chips a { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
+    .pop .chips a:hover, .pop .chips a:focus-visible { border-bottom-color: #c9f24b; box-shadow: 0 2px 0 #c9f24b; outline: none; }
+
+    html[data-motion="static"] [data-motion-controls],
+    html[data-motion="static"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="static"] [data-motion-item] {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+      transition: none !important;
+    }
+    html[data-motion="step"] [data-motion-controls],
+    html[data-motion="step"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="step"] [data-motion-item] {
+      animation: none !important;
+      transition: none !important;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .001ms !important;
+      }
+      [data-motion-item] { opacity: 1 !important; transform: none !important; }
+      [data-motion-decorative] { display: none !important; }
+      [data-motion-controls] { display: none !important; }
+    }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      .topbar, .theme { display: none !important; }
+      [data-motion-controls], [data-motion-decorative] { display: none !important; }
+      [data-motion-item] {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+        transition: none !important;
+      }
+      .motion-ready .card { display: block; }
+      .pop { display: none !important; }
+    }
+
+    /* System Design Primer diagram additions. */
+    .sys-arrow { fill: none; stroke: var(--color-muted); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .sys-dash { fill: none; stroke: var(--color-muted); stroke-width: 2.5; stroke-dasharray: 9 7; stroke-linecap: round; }
+    .sys-box { stroke: #101a2e; stroke-width: 3; }
+    .sys-text { fill: #101a2e; font: 700 22px var(--font-sans); pointer-events: none; }
+    .sys-small { fill: #101a2e; font: 700 18px var(--font-sans); pointer-events: none; }
+    .sys-copy { stroke: #101a2e; stroke-width: 3; opacity: 1; }
+    .sys-frame { fill: none; stroke: var(--color-muted); stroke-width: 2.5; stroke-dasharray: 9 7; }
+    .sys-frame-label { fill: var(--color-paper); }
+    .sys-frame-text { fill: var(--color-muted); font: 700 16px var(--font-mono); letter-spacing: .08em; }
+    .edge-label-bg { fill: var(--color-paper); opacity: .98; }
+    .edge-label { fill: var(--color-muted); font: 600 14px var(--font-mono); }
+    .step-badge { fill: var(--color-tag); stroke: var(--color-ink); stroke-width: 2; }
+    .step-badge-t { fill: #101a2e; font: 700 14px var(--font-sans); }
+    .cyl { stroke: #101a2e; stroke-width: 3; fill: #f5ef7a; }
+    .cyl-back { stroke: #101a2e; stroke-width: 3; }
+  </style>
+</head>
+<body>
+  <main id="top" data-motion-root tabindex="-1" data-motion-mode="step" data-step-count="3" data-step-current="3" data-frame="static" data-static-frame="complete">
+    <div class="topbar">
+      <fieldset class="theme"><legend>Theme</legend><input type="radio" name="theme" id="t-auto" checked><label for="t-auto">◐ Auto</label><input type="radio" name="theme" id="t-dark"><label for="t-dark">● Dark</label><input type="radio" name="theme" id="t-light"><label for="t-light">○ Light</label></fieldset>
+    </div>
+    <p class="eyebrow">Interactive diagram · architecture</p>
+    <h1 class="sr-only-h">Design a key-value cache to save the results of the most recent web server queries — interactive diagram</h1>
+    <!-- GENERATED:START -->
+    <div class="diagram-container">
+      <svg viewBox="0 0 1447 1780" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="query-cache-title query-cache-desc">
+        <title id="query-cache-title">Design a key-value cache to save recent query results</title>
+        <desc id="query-cache-desc">A client resolves DNS, then requests pass through a load balancer and web server to the Query API. The API checks the memory cache. On a cache miss it uses the reverse index service and document service, then stores the result in the cache.</desc>
+        <defs><marker id="mk" markerWidth="12" markerHeight="10" refX="11" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path class="mkp" d="M0,0 L12,5 L0,10 Z"/></marker></defs>
+        <rect class="bg" width="1447" height="1780"/>
+        <rect x="306.4" y="47" width="454.4" height="87" rx="4" fill="#c9f24b" opacity=".82"/>
+        <text class="title" y="118"><tspan x="76">Design </tspan><tspan class="b" x="322.4">Query Cache</tspan></text>
+        <text class="txt-m" x="80" y="158" style="font-size:15px">Diagram after donnemartin/system-design-primer · CC BY 4.0</text>
+
+        <g data-motion-item data-step="1" aria-label="Step 1 of 3: Cache hit connectors">
+          <path class="sys-arrow" d="M370,270 H930" marker-end="url(#mk)"/>
+          <path class="sys-arrow" d="M260,310 V410 H710 V500" marker-end="url(#mk)"/>
+          <path class="sys-arrow" d="M710,608 V720" marker-end="url(#mk)"/>
+          <path class="sys-arrow" d="M600,828 H430 Q410,828 410,848 V1010 Q410,1030 390,1030 H270 V1050" marker-end="url(#mk)"/>
+          <path class="sys-arrow" d="M270,1166 V1460 Q270,1480 290,1480 H690 Q710,1480 710,1500 V1540" marker-end="url(#mk)"/>
+        </g>
+        <g data-motion-item data-step="2" aria-label="Step 2 of 3: Cache miss connectors">
+          <path class="sys-arrow" d="M406,1095 H760 V1050 H920" marker-end="url(#mk)"/>
+          <path class="sys-arrow" d="M1030,1126 V1280" marker-end="url(#mk)"/>
+          <path class="sys-arrow" d="M920,1330 H840 Q820,1330 820,1350 V1460 H580 Q560,1460 560,1480 V1585 H600" marker-end="url(#mk)"/>
+        </g>
+        <g data-motion-item data-step="3" aria-label="Step 3 of 3: Cache refresh connector">
+          <path class="sys-dash" d="M1030,1396 V1450 H760 Q740,1450 740,1470 V1540" marker-end="url(#mk)"/>
+        </g>
+
+        <g data-motion-item data-step="1" aria-label="Step 1 of 3: Cache hit components">
+          <a class="box-link" href="#box-client" aria-label="Client: open explanation"><rect class="sys-box" x="150" y="230" width="220" height="80" rx="2" fill="#00f20d"/><text class="sys-small" text-anchor="middle"><tspan x="260" y="276">Client</tspan></text><rect class="hit" x="146" y="226" width="228" height="88"/></a>
+          <a class="box-link" href="#box-dns" aria-label="DNS: open explanation"><rect class="sys-box" x="930" y="230" width="220" height="80" rx="2" fill="#cdf87b"/><text class="sys-small" text-anchor="middle"><tspan x="1040" y="276">DNS</tspan></text><rect class="hit" x="926" y="226" width="228" height="88"/></a>
+          <a class="box-link" href="#box-load-balancer" aria-label="Load Balancer: open explanation"><rect class="sys-copy" x="626" y="526" width="220" height="82" rx="2" fill="#bd559f"/><rect class="sys-copy" x="613" y="513" width="220" height="82" rx="2" fill="#d87abc"/><rect class="sys-box" x="600" y="500" width="220" height="82" rx="2" fill="#f181d0"/><text class="sys-small" text-anchor="middle"><tspan x="710" y="547">Load Balancer</tspan></text><rect class="hit" x="596" y="496" width="228" height="90"/></a>
+          <a class="box-link" href="#box-web-server" aria-label="Web Server: open explanation"><rect class="sys-copy" x="626" y="746" width="220" height="82" rx="2" fill="#b08718"/><rect class="sys-copy" x="613" y="733" width="220" height="82" rx="2" fill="#d1a52c"/><rect class="sys-box" x="600" y="720" width="220" height="82" rx="2" fill="#f0bf35"/><text class="sys-small" text-anchor="middle"><tspan x="710" y="767">Web Server</tspan></text><rect class="hit" x="596" y="716" width="228" height="90"/></a>
+          <a class="box-link" href="#box-query-api" aria-label="Query API: open explanation"><rect class="sys-copy" x="186" y="1076" width="220" height="90" rx="2" fill="#c79740"/><rect class="sys-copy" x="173" y="1063" width="220" height="90" rx="2" fill="#e4b95a"/><rect class="sys-box" x="160" y="1050" width="220" height="90" rx="2" fill="#fed17e"/><text class="sys-small" text-anchor="middle"><tspan x="270" y="1102">Query API</tspan></text><rect class="hit" x="156" y="1046" width="228" height="98"/></a>
+          <a class="box-link" href="#box-memory-cache" aria-label="Memory Cache: open explanation"><rect class="sys-copy" x="626" y="1566" width="220" height="90" rx="2" fill="#c7763f"/><rect class="sys-copy" x="613" y="1553" width="220" height="90" rx="2" fill="#e19257"/><rect class="sys-box" x="600" y="1540" width="220" height="90" rx="2" fill="#fe9f61"/><text class="sys-small" text-anchor="middle"><tspan x="710" y="1592">Memory Cache</tspan></text><rect class="hit" x="596" y="1536" width="228" height="98"/></a>
+          <a href="#pop-1" class="box-link" aria-label="Step 1: Cache hit"><rect class="step-badge" x="386" y="256" width="122" height="28" rx="14"/><text class="step-badge-t" x="398" y="275">1 · Cache hit</text></a>
+        </g>
+        <g data-motion-item data-step="2" aria-label="Step 2 of 3: Cache miss components">
+          <a class="box-link" href="#box-reverse-index-service" aria-label="Reverse Index Service: open explanation"><rect class="sys-copy" x="946" y="1036" width="220" height="90" rx="2" fill="#c79740"/><rect class="sys-copy" x="933" y="1023" width="220" height="90" rx="2" fill="#e4b95a"/><rect class="sys-box" x="920" y="1010" width="220" height="90" rx="2" fill="#fed17e"/><text class="sys-small" text-anchor="middle"><tspan x="1030" y="1050">Reverse Index</tspan><tspan x="1030" y="1076">Service</tspan></text><rect class="hit" x="916" y="1006" width="228" height="98"/></a>
+          <a class="box-link" href="#box-document-service" aria-label="Document Service: open explanation"><rect class="sys-copy" x="946" y="1306" width="220" height="90" rx="2" fill="#c79740"/><rect class="sys-copy" x="933" y="1293" width="220" height="90" rx="2" fill="#e4b95a"/><rect class="sys-box" x="920" y="1280" width="220" height="90" rx="2" fill="#fed17e"/><text class="sys-small" text-anchor="middle"><tspan x="1030" y="1320">Document</tspan><tspan x="1030" y="1346">Service</tspan></text><rect class="hit" x="916" y="1276" width="228" height="98"/></a>
+          <a href="#pop-2" class="box-link" aria-label="Step 2: Cache miss"><rect class="step-badge" x="1182" y="1041" width="132" height="28" rx="14"/><text class="step-badge-t" x="1194" y="1060">2 · Cache miss</text></a>
+        </g>
+        <g data-motion-item data-step="3" aria-label="Step 3 of 3: Cache refresh components"><a href="#pop-3" class="box-link" aria-label="Step 3: Cache refresh"><rect class="step-badge" x="862" y="1571" width="146" height="28" rx="14"/><text class="step-badge-t" x="874" y="1590">3 · Cache refresh</text></a></g>
+      </svg>
+      <article class="pop" id="pop-1" style="--x: 35.1%; --y: 14.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><p class="phase-tag"><a href="#detail-1">STEP 1</a></p><h2>Cache hit</h2><p class="goal">The Query API finds a popular query in memory and returns the cached result.</p><h3>Flow</h3><p>Client → Web Server → Query API → Memory Cache.</p></article>
+      <article class="pop pl pu" id="pop-2" style="--x: 90.8%; --y: 58.5%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><p class="phase-tag"><a href="#detail-2">STEP 2</a></p><h2>Cache miss</h2><p class="goal">The API finds matching documents, gets titles and snippets, then saves the contents in the cache.</p><h3>Flow</h3><p>Query API → Reverse Index Service → Document Service → Memory Cache.</p></article>
+      <article class="pop pl pu" id="pop-3" style="--x: 69.7%; --y: 88.8%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><p class="phase-tag"><a href="#detail-3">STEP 3</a></p><h2>Cache refresh</h2><p class="goal">Cached entries expire so page changes, removals, additions, and rank changes can be refreshed.</p></article>
+      <article class="pop" id="box-client" style="--x: 18.0%; --y: 15.2%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Client</h2><h3>What it is</h3><p>The client sends a search request.</p><h3>Its job here</h3><p>It resolves the site name with DNS. It then sends the request to the Load Balancer.</p><h3>In the primer</h3><p><a href="../topics/communication.html#hypertext-transfer-protocol-http" target="_top">Communication › Hypertext transfer protocol (HTTP) →</a></p></article>
+      <article class="pop pl" id="box-dns" style="--x: 71.9%; --y: 15.2%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>DNS</h2><h3>What it is</h3><p>DNS maps a name to an address.</p><h3>Its job here</h3><p>It receives the client lookup. The client then sends its request to the Load Balancer.</p><h3>In the primer</h3><p><a href="../topics/domain-name-system.html#disadvantages-dns" target="_top">Domain name system › Disadvantage(s): DNS →</a></p></article>
+      <article class="pop" id="box-load-balancer" style="--x: 49.1%; --y: 30.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Load Balancer</h2><h3>What it is</h3><p>A load balancer spreads incoming requests.</p><h3>Its job here</h3><p>It receives requests from the Client. It sends each request to a Web Server.</p><h3>Trade-off</h3><p>Load balancers add another component to operate.</p><h3>In the primer</h3><p><a href="../topics/load-balancer.html#layer-7-load-balancing" target="_top">Load balancer › Layer 7 load balancing →</a></p></article>
+      <article class="pop" id="box-web-server" style="--x: 49.1%; --y: 42.8%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Web Server</h2><h3>What it is</h3><p>The web server runs as a reverse proxy.</p><h3>Its job here</h3><p>It receives a request from the Load Balancer. It forwards the request to the Query API.</p><h3>In the primer</h3><p><a href="../topics/reverse-proxy-web-server.html#load-balancer-vs-reverse-proxy" target="_top">Reverse proxy › Load balancer vs reverse proxy →</a></p></article>
+      <article class="pop pu" id="box-query-api" style="--x: 18.7%; --y: 61.5%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Query API</h2><h3>What it is</h3><p>The Query API parses and processes a search query.</p><h3>Its job here</h3><p>It receives the web request and checks the Memory Cache. On a miss, it asks the Reverse Index Service for matching documents.</p><h3>In the primer</h3><p><a href="../topics/application-layer.html#microservices" target="_top">Application layer › Microservices →</a></p></article>
+      <article class="pop pl pu" id="box-reverse-index-service" style="--x: 71.2%; --y: 59.3%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Reverse Index Service</h2><h3>What it is</h3><p>This service finds documents that match a query.</p><h3>Its job here</h3><p>It receives the normalized query from the Query API. It ranks matching results and passes the top ones to the Document Service.</p><h3>In the primer</h3><p><a href="../topics/database.html#use-good-indices" target="_top">Database › Use good indices →</a></p></article>
+      <article class="pop pl pu" id="box-document-service" style="--x: 71.2%; --y: 74.2%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Document Service</h2><h3>What it is</h3><p>This service returns document titles and snippets.</p><h3>Its job here</h3><p>It receives top matches from the Reverse Index Service. It returns contents for the Query API to place in the Memory Cache.</p><h3>In the primer</h3><p><a href="../topics/database.html#document-store" target="_top">Database › Document store →</a></p></article>
+      <article class="pop pu" id="box-memory-cache" style="--x: 49.1%; --y: 88.8%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Memory Cache</h2><h3>What it is</h3><p>The Memory Cache holds query results in memory.</p><h3>Its job here</h3><p>It receives lookups from the Query API. On a hit it moves the entry to the front of the LRU list and returns cached contents; on a miss, the Query API uses the Reverse Index Service.</p><h3>Examples</h3><ul class="chips"><li>Redis</li><li>Memcached</li></ul><h3>Trade-off</h3><p>Limited memory means older entries need to expire.</p><h3>In the primer</h3><p><a href="../topics/cache.html#cache-aside" target="_top">Cache › Cache-aside →</a></p></article>
+    </div>
+    <!-- GENERATED:END -->
+    <div data-motion-controls role="group" aria-label="Diagram playback controls">
+      <button type="button" data-motion-action="prev">Previous</button>
+      <button type="button" data-motion-action="play" aria-pressed="false">Play</button>
+      <button type="button" data-motion-action="pause" aria-pressed="true">Pause</button>
+      <button type="button" data-motion-action="next">Next</button>
+      <button type="button" data-motion-action="replay">Replay</button>
+      <span class="keyboard-help">←/→ step · Space play/pause · R replay · Home/End jump</span>
+      <span data-motion-status-visible aria-hidden="true">Step <span data-motion-step-label>3</span> of 3</span>
+    </div>
+    <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
+    <noscript><p>Animation controls require JavaScript. The complete final diagram is shown above.</p></noscript>
+    <i id="close-card" aria-hidden="true"></i>
+    <section class="panel" id="panel" aria-label="Step detail"><div class="panel-head"><p>Detail · follows playback, or click any box or step to pin it</p><a class="follow" href="#close-card">Close · follow playback</a></div><p class="hint">Click any box for an explanation, or use Next or Play to walk through the three steps.</p><article class="card" id="detail-1"><h2>1 · Cache hit</h2><p class="goal">Popular queries return from the Memory Cache.</p><p>The API updates the entry’s position at the front of the LRU list and returns cached contents.</p></article>
+<article class="card" id="detail-2"><h2>2 · Cache miss</h2><p class="goal">The API finds, ranks, and enriches matching documents.</p><p>The result is placed at the front of the Memory Cache’s LRU list.</p></article>
+<article class="card" id="detail-3"><h2>3 · Cache refresh</h2><p class="goal">A time to live refreshes cached entries.</p><p>Use it when page contents, pages, or page ranks change.</p></article></section>
+  </main>
+
+  <script data-diagram-controls>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const staticOverride = params.get('motion') === 'static' || document.documentElement.dataset.motion === 'static';
+      const requestedStep = params.get('step');
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      document.fonts.ready.then(() => { document.documentElement.dataset.fontsReady = 'true'; });
+
+      document.querySelectorAll('[data-motion-root]').forEach((root) => {
+        const count = Number(root.dataset.stepCount);
+        const hold = parseFloat(getComputedStyle(root).getPropertyValue('--motion-hold')) || 720;
+        const parsedStep = requestedStep !== null && /^\d+$/.test(requestedStep) ? Number(requestedStep) : null;
+        const exactStep = params.get('motion') === 'step' && Number.isSafeInteger(parsedStep) && parsedStep >= 0 && parsedStep <= count ? parsedStep : null;
+        const items = [...root.querySelectorAll('[data-motion-item]')];
+        const labels = Array.from({ length: count + 1 }, (_, index) => index === 0
+          ? 'Ready'
+          : items.filter((item) => !item.hasAttribute('data-motion-decorative') && Number(item.dataset.step) === index)
+              .map((item) => item.getAttribute('aria-label')).join('; '));
+        const controls = root.querySelector('[data-motion-controls]');
+        const status = root.querySelector('[data-motion-status]');
+        const visibleStep = root.querySelector('[data-motion-step-label]');
+        let step = count;
+        let timer = 0;
+        let playing = false;
+        let stepBeforeReduce = 0;
+        let resumeAfterReduce = root.dataset.motionMode === 'reveal';
+
+        const buttons = (action) => controls.querySelector(`[data-motion-action="${action}"]`);
+        const clearClock = () => { window.clearTimeout(timer); timer = 0; };
+        const announce = () => { status.textContent = `Step ${step} of ${count}: ${labels[step] || 'Complete'}`; };
+        const setControlsAvailable = (available) => {
+          controls.hidden = !available;
+          controls.setAttribute('aria-hidden', String(!available));
+          controls.dataset.playbackDisabled = String(!available);
+          controls.querySelectorAll('button').forEach((control) => { control.disabled = !available; });
+        };
+
+        function render(next, userInitiated = false) {
+          step = Math.max(0, Math.min(count, next));
+          root.dataset.stepCurrent = String(step);
+          root.dataset.frame = step === count ? 'end' : step === 0 ? 'start' : 'step';
+          items.forEach((item) => {
+            const itemStep = Number(item.dataset.step);
+            item.classList.toggle('is-visible', itemStep <= step);
+            item.classList.toggle('is-current', itemStep === step);
+          });
+          if (visibleStep) visibleStep.textContent = String(step);
+          const unavailable = controls.dataset.playbackDisabled === 'true';
+          buttons('prev').disabled = unavailable || step === 0;
+          buttons('next').disabled = unavailable || step === count;
+          if (userInitiated) announce();
+        }
+
+        function pause(userInitiated = false) {
+          clearClock();
+          playing = false;
+          root.classList.remove('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'false');
+          buttons('pause').setAttribute('aria-pressed', 'true');
+          if (userInitiated) status.textContent = `Paused at step ${step} of ${count}`;
+        }
+
+        function finish() {
+          pause(false);
+          root.dataset.frame = 'end';
+          status.textContent = `Complete · step ${count} of ${count}`;
+        }
+
+        function tick() {
+          if (!playing) return;
+          if (step >= count) { finish(); return; }
+          render(step + 1, false);
+          if (step >= count) { finish(); return; }
+          timer = window.setTimeout(tick, hold);
+        }
+
+        function play(fromStart = false, userInitiated = false) {
+          clearClock();
+          if (fromStart || step >= count) render(0, userInitiated);
+          playing = true;
+          root.classList.add('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'true');
+          buttons('pause').setAttribute('aria-pressed', 'false');
+          timer = window.setTimeout(tick, hold);
+        }
+
+        controls.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-motion-action]');
+          if (!button) return;
+          const action = button.dataset.motionAction;
+          if (action === 'play') play(false, true);
+          if (action === 'pause') pause(true);
+          if (action === 'replay') play(true, true);
+          if (action === 'prev') { pause(false); render(step - 1, true); }
+          if (action === 'next') { pause(false); render(step + 1, true); }
+        });
+
+        root.addEventListener('keydown', (event) => {
+          if (event.target.matches('input, textarea, select, a[href]')) return;
+          const keys = { ArrowLeft: step - 1, ArrowRight: step + 1, Home: 0, End: count };
+          if (event.code === 'Space' && !event.target.closest('button')) {
+            event.preventDefault();
+            playing ? pause(true) : play(false, true);
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'r') {
+            event.preventDefault();
+            play(true, true);
+            return;
+          }
+          if (!(event.key in keys)) return;
+          event.preventDefault();
+          pause(false);
+          render(keys[event.key], true);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && playing) pause(false);
+        });
+        reduce.addEventListener('change', (event) => {
+          if (event.matches && root.dataset.motionState !== 'reduced') {
+            stepBeforeReduce = step;
+            resumeAfterReduce = playing;
+          }
+          pause(false);
+          if (event.matches) {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'reduced';
+            status.textContent = 'Reduced motion · complete static frame · playback controls unavailable';
+          } else if (staticOverride || root.dataset.motionMode === 'none') {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'static';
+            status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+          } else {
+            delete root.dataset.motionState;
+            if (exactStep !== null) {
+              setControlsAvailable(false);
+              render(exactStep, false);
+              root.dataset.frame = 'step';
+              root.dataset.motionState = 'test';
+              status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+            } else {
+              setControlsAvailable(true);
+              render(stepBeforeReduce, false);
+              status.textContent = `Ready · step ${step} of ${count}`;
+              if (resumeAfterReduce && root.dataset.motionMode === 'reveal') {
+                play(false, false);
+              }
+            }
+            resumeAfterReduce = false;
+          }
+        });
+
+        if (staticOverride) {
+          document.documentElement.dataset.motion = 'static';
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = 'static';
+          status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+        } else if (reduce.matches || root.dataset.motionMode === 'none') {
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = reduce.matches ? 'reduced' : 'static';
+          status.textContent = reduce.matches
+            ? 'Reduced motion · complete static frame · playback controls unavailable'
+            : 'Static frame · complete diagram · playback controls unavailable';
+        } else if (exactStep !== null) {
+          document.documentElement.dataset.motion = 'step';
+          pause(false);
+          setControlsAvailable(false);
+          render(exactStep, false);
+          root.dataset.frame = 'step';
+          root.dataset.motionState = 'test';
+          status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+        } else if (root.dataset.motionMode === 'reveal') {
+          setControlsAvailable(true);
+          render(0, false);
+          play(false, false);
+        } else {
+          pause(false);
+          setControlsAvailable(true);
+          render(0, false);
+          status.textContent = `Ready · step 0 of ${count}`;
+        }
+        root.classList.add('motion-ready');
+      });
+    })();
+  </script>
+</body>
+</html>
