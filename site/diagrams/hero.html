@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="darkreader-lock">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>The System Design Primer — a web system at scale</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --color-paper: #f6f3ec;
+      --color-panel: #fffdf8;
+      --color-ink: #101a2e;
+      --color-muted: #60708b;
+      --color-soft: #60708b;
+      --color-accent: #ff7961;
+      --color-lime: #c9f24b;
+      --color-link: #96c1ff;
+      --color-link-text: #1d4f9a;
+      --color-rule: #dfe3df;
+      --color-strip: #f0f1ee; --color-pill: #d9ee4a; --color-tag: #eefb82;
+      --tint-coral: #fcd7c6; --tint-blue: #dbe9fb; --tint-lime: #f0fab4; --color-ring-o: #a9bfd0; --color-ring-i: #5aa3f2; --color-diag: #3f7f8c;
+      --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-serif: ui-serif, Georgia, "Times New Roman", serif;
+      --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      --motion-fast: 160ms;
+      --motion-step: 480ms;
+      --motion-hold: 720ms;
+      --motion-total: 5040ms;
+      --motion-ease: cubic-bezier(.2,.8,.2,1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-paper: #11151d; --color-panel: #171c26; --color-ink: #ece8de;
+        --color-muted: #95a0b4; --color-soft: #95a0b4; --color-rule: #2d3543;
+        --color-link-text: #96c1ff; --color-strip: #212836; --color-pill: #b8d63a; --color-tag: #c9f24b;
+        --tint-coral: #5a352b; --tint-blue: #25385a; --tint-lime: #3d4a1d; --color-ring-o: #4b6275; --color-ring-i: #4a8fdc; --color-diag: #6fb3c0;
+      }
+    }
+    :root[data-theme="dark"],
+    :root:has(#t-dark:checked),
+    body:has(#t-dark:checked) {
+      --color-paper: #11151d; --color-panel: #171c26; --color-ink: #ece8de;
+        --color-muted: #95a0b4; --color-soft: #95a0b4; --color-rule: #2d3543;
+        --color-link-text: #96c1ff; --color-strip: #212836; --color-pill: #b8d63a; --color-tag: #c9f24b;
+        --tint-coral: #5a352b; --tint-blue: #25385a; --tint-lime: #3d4a1d; --color-ring-o: #4b6275; --color-ring-i: #4a8fdc; --color-diag: #6fb3c0;
+    }
+    :root[data-theme="light"],
+    :root:has(#t-light:checked),
+    body:has(#t-light:checked) {
+      --color-paper: #f7f7f2; --color-panel: #ffffff; --color-ink: #101a2e;
+        --color-muted: #60708b; --color-soft: #60708b; --color-rule: #dfe3df;
+        --color-link-text: #1d4f9a; --color-strip: #f0f1ee; --color-pill: #d9ee4a; --color-tag: #eefb82;
+        --tint-coral: #fcd7c6; --tint-blue: #dbe9fb; --tint-lime: #f0fab4; --color-ring-o: #a9bfd0; --color-ring-i: #5aa3f2; --color-diag: #3f7f8c;
+    }
+    html:has(#t-dark:checked) { color-scheme: dark; }
+    html:has(#t-light:checked) { color-scheme: light; }
+    html { background: var(--color-paper); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 32px 16px 48px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font-family: var(--font-sans);
+      display: grid;
+      justify-items: center;
+    }
+    [data-motion-root] { width: min(100%, 1000px); max-width: 100%; min-width: 0; outline: none; }
+    .topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 20px;
+    }
+    .back {
+      color: var(--color-link-text); font: 500 14px/1.4 var(--font-sans);
+      min-height: 44px; display: inline-flex; align-items: center;
+    }
+    .back:focus-visible, .node-link:focus-visible, .follow:focus-visible {
+      outline: 3px solid var(--color-accent); outline-offset: 2px;
+    }
+    .theme { display: inline-flex; border: 1px solid var(--color-rule); border-radius: 4px; padding: 0; margin: 0; min-width: 0; }
+    .theme legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    .theme input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .theme label {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 44px; min-height: 44px; padding: 0 12px; cursor: pointer;
+      color: var(--color-muted); font: 600 12px/1 var(--font-sans);
+    }
+    .theme input:checked + label { background: var(--color-ink); color: var(--color-paper); }
+    .theme input:focus-visible + label { outline: 3px solid var(--color-accent); outline-offset: -3px; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    h1.sr-only-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    svg { display: block; width: 100%; min-width: 0; height: auto; }
+    .diagram-container { position: relative; width: 100%; overflow: visible; }
+    .bg { fill: var(--color-paper); }
+    .title { fill: var(--color-ink); font: 400 64px var(--font-sans); letter-spacing: -1px; }
+    .b { font-weight: 800; }
+    .card-box { fill: var(--color-panel); stroke: var(--color-rule); stroke-width: 2; }
+    .card-box.soft { fill: var(--color-strip); stroke: var(--color-rule); }
+    .edge-crm { stroke: #ff9a7a; stroke-width: 3; }
+    .edge-enr { stroke: #5ac8f0; stroke-width: 3; }
+    .strip { fill: var(--color-strip); }
+    .t-coral { fill: var(--tint-coral); }
+    .t-blue { fill: var(--tint-blue); }
+    .t-lime { fill: var(--tint-lime); }
+    .pill { fill: var(--color-panel); stroke: var(--color-pill); stroke-width: 3; transition: stroke-width var(--motion-fast); }
+    .pill-ul { fill: var(--color-pill); opacity: .85; }
+    .pill-t { fill: var(--color-ink); font-weight: 700; font-family: var(--font-sans); letter-spacing: -.5px; }
+    .tag { fill: var(--color-tag); }
+    .tag-t { fill: #101a2e; font: 500 20px var(--font-sans); }
+    .txt { fill: var(--color-ink); font-family: var(--font-sans); }
+    .txt-b { fill: var(--color-ink); font-family: var(--font-sans); font-weight: 700; }
+    .txt-m { fill: var(--color-muted); font-family: var(--font-sans); font-weight: 500; }
+    .ico { fill: var(--color-rule); }
+    .chip-c { fill: var(--color-panel); stroke: var(--color-rule); stroke-width: 3; }
+    .chip-d { fill: var(--color-ink); }
+    .logo-bg { fill: #fff; stroke: var(--color-rule); stroke-width: 0.8; }
+    .ico-l { fill: var(--color-ink); font-family: var(--font-sans); font-weight: 700; pointer-events: none; }
+    .dot-lime { fill: #c9f24b; }
+    .dot-red { fill: #ef4b4b; }
+    .ph { fill: var(--color-strip); stroke: var(--color-rule); }
+    .line { fill: none; stroke: var(--color-ink); stroke-width: 1.6; }
+    .loop { fill: none; stroke: var(--color-ink); stroke-width: 1.6; stroke-dasharray: 5 5; }
+    .rule { stroke: var(--color-rule); stroke-width: 1.5; }
+    .ring-o { fill: none; stroke: var(--color-ring-o); stroke-width: 10; opacity: .35; }
+    .arc-o { fill: none; stroke: var(--color-ring-o); stroke-width: 4; }
+    .arc-i { fill: none; stroke: var(--color-ring-i); stroke-width: 3; }
+    .diag { fill: none; stroke: var(--color-diag); stroke-width: 3; }
+    .mkp { fill: var(--color-ink); }
+    .mko { fill: var(--color-ring-o); }
+    .mki { fill: var(--color-ring-i); }
+    .mkt { fill: var(--color-diag); }
+    .node-link { cursor: pointer; }
+    .node-link:hover .pill { stroke-width: 5; }
+    .motion-ready .is-current .pill { stroke: var(--color-ink); stroke-width: 5; }
+    .motion-ready .is-current .tag { fill: #c9f24b; stroke: var(--color-ink); stroke-width: 2; }
+    .motion-ready[data-frame="step"] [data-motion-item].is-visible:not(.is-current) { opacity: .28; }
+
+    /* Idle state: whole diagram visible. Dimming applies only while stepping or playing. */
+    .motion-ready[data-frame="start"]:not(.is-playing) [data-motion-item] { opacity: 1; transform: none; }
+
+    /* Every box is a link. */
+    .box-link { cursor: pointer; }
+    .hit { fill: transparent; stroke: transparent; stroke-width: 5; }
+    .box-link:is(:hover, :focus-visible) :is(.card-box, .chip-c, .hit, .pill) {
+      stroke: #c9f24b; stroke-width: 5; filter: drop-shadow(0 0 1.5px rgba(16,26,46,.7));
+    }
+    .box-link:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+
+    .motion-ready [data-motion-item] {
+      opacity: .12;
+      transform: translateY(8px);
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity var(--motion-step) var(--motion-ease),
+                  transform var(--motion-step) var(--motion-ease);
+    }
+    .motion-ready [data-motion-item].is-visible,
+    .motion-ready[data-frame="end"] [data-motion-item],
+    .motion-ready[data-frame="static"] [data-motion-item] {
+      opacity: 1;
+      transform: none;
+    }
+
+    [data-motion-controls] {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--color-rule);
+    }
+    .motion-ready [data-motion-controls] { display: flex; }
+    [data-motion-controls][hidden] { display: none !important; }
+    [data-motion-controls] button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-muted);
+      border-radius: 4px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font: 600 12px/1 var(--font-sans);
+      cursor: pointer;
+    }
+    [data-motion-controls] button:hover { border-color: var(--color-accent); }
+    [data-motion-controls] button:focus-visible {
+      outline: 3px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+    [data-motion-controls] button:disabled { cursor: not-allowed; opacity: .45; }
+    .keyboard-help { color: var(--color-muted); font: 400 12px/1.4 var(--font-mono); }
+    [data-motion-status-visible] {
+      margin-left: auto;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+    noscript p {
+      margin: 12px 0 0;
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-mono);
+    }
+
+    /* Detail panel: all cards without JS, follows playback step, or pinned by :target. */
+    .panel { margin-top: 24px; scroll-margin-top: 16px; }
+    .panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .panel-head p { margin: 0; color: var(--color-muted); font: 500 12px/1.4 var(--font-mono); }
+    .follow { color: var(--color-link-text); font: 600 12px/1 var(--font-sans); min-height: 44px; display: inline-flex; align-items: center; }
+    .card {
+      margin: 0 0 12px; padding: 16px; border: 1px solid var(--color-rule); border-radius: 6px;
+      background: var(--color-panel); scroll-margin-top: 16px;
+    }
+    .card h2 { margin: 0 0 4px; font: 400 22px/1.2 var(--font-serif); }
+    .card .goal { margin: 0 0 12px; color: var(--color-muted); font: 400 14px/1.5 var(--font-sans); }
+    .card ul { margin: 0; padding-left: 18px; font: 400 14px/1.6 var(--font-sans); }
+    .card code { font: 500 13px var(--font-mono); }
+    .hint { display: none; color: var(--color-muted); font: 400 14px/1.5 var(--font-sans); }
+    .motion-ready .card { display: none; }
+    .motion-ready[data-step-current="0"] .hint { display: block; }
+    .motion-ready[data-step-current="1"] #detail-1,
+    .motion-ready[data-step-current="2"] #detail-2,
+    .motion-ready[data-step-current="3"] #detail-3,
+    .motion-ready[data-step-current="4"] #detail-4,
+    .motion-ready[data-step-current="5"] #detail-5,
+    .motion-ready[data-step-current="6"] #detail-6,
+    .motion-ready[data-step-current="7"] #detail-7 { display: block; }
+    /* Popup explainers: sit inside the diagram frame, next to the box or pill they explain. */
+    .pop {
+      --w: min(400px, 92%);
+      display: none; position: absolute; z-index: 30; width: var(--w);
+      left: min(calc(var(--x) + 10px), calc(100% - var(--w)));
+      top: var(--y);
+      margin: 0; padding: 20px 22px 22px; border: 1px solid var(--color-rule); border-radius: 14px;
+      background: var(--color-panel); color: var(--color-ink); box-shadow: 0 10px 30px rgba(16,26,46,.28);
+      scroll-margin: 35vh 0;
+    }
+    .pop.pl { left: max(0px, min(calc(var(--x) - var(--w) - 10px), calc(100% - var(--w)))); }
+    .pop.pu { transform: translateY(calc(-100% + 60px)); }  /* lower half: grow upward so it stays in the frame */
+    .pop:target { display: block; border-color: var(--color-accent); }
+    .pop h2 { margin: 0 30px 8px 0; font: 400 22px/1.2 var(--font-serif); }
+    .pop h3 { margin: 16px 0 4px; color: var(--color-muted); font: 600 11px/1.3 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+    .pop p, .pop ul { margin: 0; font: 400 15px/1.55 var(--font-sans); }
+    .pop .goal { margin: 0 0 8px; color: var(--color-muted); font-size: 15px; line-height: 1.55; }
+    .pop ul { padding-left: 18px; }
+    .pop li + li { margin-top: 4px; }
+    .pop code { font: 500 13.5px var(--font-mono); }
+    .pop .phase-tag { margin: 0 0 4px; }
+    .pop-x {
+      position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 16px; color: var(--color-muted); font: 500 16px/1 var(--font-sans); text-decoration: none;
+    }
+    .pop-x:hover { color: var(--color-ink); background: var(--color-strip); }
+    .pop-x:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 1px; }
+    .phase-tag a {
+      display: inline-flex; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 11px;
+      background: var(--color-tag); color: #101a2e; font: 500 11px/1 var(--font-sans); text-decoration: none;
+    }
+    .phase-tag a:hover { outline: 2px solid var(--color-ink); }
+    .phase-tag a:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+    .pop .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .pop .chips li { padding: 3px 11px; border: 1px solid var(--color-rule); border-radius: 14px; background: var(--color-strip); font: 500 13.5px/1.5 var(--font-sans); }
+    .pop .chips a { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
+    .pop .chips a:hover, .pop .chips a:focus-visible { border-bottom-color: #c9f24b; box-shadow: 0 2px 0 #c9f24b; outline: none; }
+
+    html[data-motion="static"] [data-motion-controls],
+    html[data-motion="static"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="static"] [data-motion-item] {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+      transition: none !important;
+    }
+    html[data-motion="step"] [data-motion-controls],
+    html[data-motion="step"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="step"] [data-motion-item] {
+      animation: none !important;
+      transition: none !important;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .001ms !important;
+      }
+      [data-motion-item] { opacity: 1 !important; transform: none !important; }
+      [data-motion-decorative] { display: none !important; }
+      [data-motion-controls] { display: none !important; }
+    }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      .topbar, .theme { display: none !important; }
+      [data-motion-controls], [data-motion-decorative] { display: none !important; }
+      [data-motion-item] {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+        transition: none !important;
+      }
+      .motion-ready .card { display: block; }
+      .pop { display: none !important; }
+    }
+
+    /* System Design Primer diagram additions. */
+    .sys-arrow { fill: none; stroke: var(--color-muted); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .sys-dash { fill: none; stroke: var(--color-muted); stroke-width: 2.5; stroke-dasharray: 9 7; stroke-linecap: round; }
+    .sys-box { stroke: #101a2e; stroke-width: 3; }
+    .sys-text { fill: #101a2e; font: 700 22px var(--font-sans); pointer-events: none; }
+    .sys-small { fill: #101a2e; font: 700 18px var(--font-sans); pointer-events: none; }
+    .sys-copy { stroke: #101a2e; stroke-width: 3; opacity: 1; }
+    .sys-frame { fill: none; stroke: var(--color-muted); stroke-width: 2.5; stroke-dasharray: 9 7; }
+    .sys-frame-label { fill: var(--color-paper); }
+    .sys-frame-text { fill: var(--color-muted); font: 700 16px var(--font-mono); letter-spacing: .08em; }
+    .edge-label-bg { fill: var(--color-paper); opacity: .98; }
+    .edge-label { fill: var(--color-muted); font: 600 14px var(--font-mono); }
+    .step-badge { fill: var(--color-tag); stroke: var(--color-ink); stroke-width: 2; }
+    .step-badge-t { fill: #101a2e; font: 700 14px var(--font-sans); }
+    .cyl { stroke: #101a2e; stroke-width: 3; fill: #f5ef7a; }
+    .cyl-back { stroke: #101a2e; stroke-width: 3; }
+  </style>
+</head>
+<body>
+  <main id="top" data-motion-root tabindex="-1" data-motion-mode="step" data-step-count="6" data-step-current="6" data-frame="static" data-static-frame="complete">
+    <div class="topbar">
+      <fieldset class="theme"><legend>Theme</legend><input type="radio" name="theme" id="t-auto" checked><label for="t-auto">◐ Auto</label><input type="radio" name="theme" id="t-dark"><label for="t-dark">● Dark</label><input type="radio" name="theme" id="t-light"><label for="t-light">○ Light</label></fieldset>
+    </div>
+    <p class="eyebrow">Interactive diagram · architecture</p>
+    <h1 class="sr-only-h">The System Design Primer — a web system at scale</h1>
+    <!-- GENERATED:START -->
+<div class="diagram-container"><svg viewBox="0 0 1447 1953" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="primer-title primer-desc">
+<title id="primer-title">The System Design Primer — a web system at scale</title>
+<desc id="primer-desc">A client resolves DNS and can use a CDN. HTTPS traffic passes through a load balancer and web servers to APIs, queues, caches, databases, and object storage.</desc>
+<defs><marker id="mk" markerWidth="12" markerHeight="10" refX="11" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path class="mkp" d="M0,0 L12,5 L0,10 Z"/></marker></defs>
+<rect class="bg" width="1447" height="1953"/>
+<rect x="645" y="51" width="240" height="87" rx="4" fill="#c9f24b" opacity=".82"/>
+<text class="title" x="76" y="118">The System Design <tspan class="b">Primer</tspan></text>
+<text class="txt-m" x="80" y="158" style="font-size:15px">Diagram after donnemartin/system-design-primer · CC BY 4.0</text>
+<g data-motion-item data-step="1" aria-label="Step 1 of 6: Front door connectors"><path class="sys-arrow" d="M840,262.5 L1000,262.5" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="883" y="230" width="73.4" height="24" rx="3"/><text class="edge-label" x="891" y="247">resolve</text></g><path class="sys-arrow" d="M804,295 L804,392.5 L1000,392.5" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="840" y="402" width="114.4" height="24" rx="3"/><text class="edge-label" x="848" y="419">static files</text></g></g>
+<g data-motion-item data-step="2" aria-label="Step 2 of 6: Spread the load connectors"><path class="sys-arrow" d="M750,295 L750,500" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="681" y="384" width="57.0" height="24" rx="3"/><text class="edge-label" x="689" y="401">HTTPS</text></g><path class="sys-arrow" d="M750,608 L750,680" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="3" aria-label="Step 3 of 6: App layer connectors"><path class="sys-arrow" d="M640,721 L555,721 L555,900" marker-end="url(#mk)"/><path class="sys-arrow" d="M750,788 L750,900" marker-end="url(#mk)"/><path class="sys-arrow" d="M886,721 L1075,721 L1075,900" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="4" aria-label="Step 4 of 6: Async work connectors"><path class="sys-arrow" d="M480,945 L446,945" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="427" y="866" width="73.4" height="24" rx="3"/><text class="edge-label" x="435" y="883">enqueue</text></g><path class="sys-arrow" d="M260,945 L236,945" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="207" y="866" width="81.6" height="24" rx="3"/><text class="edge-label" x="215" y="883">pull job</text></g><path class="sys-arrow" d="M167.5,1016 L167.5,1350 L300,1350" marker-end="url(#mk)"/></g>
+<g data-motion-item data-step="5" aria-label="Step 5 of 6: Fast reads connectors"><path class="sys-arrow" d="M1000,945 L925,945 L925,1100" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="937" y="1030" width="98.0" height="24" rx="3"/><text class="edge-label" x="945" y="1047">read first</text></g><path class="sys-arrow" d="M1075,1016 L1075,1300" marker-end="url(#mk)"/><g><rect class="edge-label-bg" x="1087" y="1150" width="73.4" height="24" rx="3"/><text class="edge-label" x="1095" y="1167">on miss</text></g></g>
+<g data-motion-item data-step="6" aria-label="Step 6 of 6: Store and scale data connectors"><path class="sys-arrow" d="M1180,392.5 L1415,392.5 L1415,1350 L1390,1350" marker-end="url(#mk)"/><path class="sys-arrow" d="M99.5,1016 L99.5,1510 L1320,1510 L1320,1402" marker-end="url(#mk)"/><path class="sys-arrow" d="M750,1016 L750,1300" marker-end="url(#mk)"/><path class="sys-arrow" d="M795,1016 L795,1250 L1320,1250 L1320,1300" marker-end="url(#mk)"/><path class="sys-dash" d="M843,1350 L995,1350"/><g><rect class="edge-label-bg" x="874" y="1312" width="89.8" height="24" rx="3"/><text class="edge-label" x="882" y="1329">replicate</text></g><path class="sys-dash" d="M654,1448 L460,1560"/></g>
+<g data-motion-item data-step="1" aria-label="Step 1 of 6: Front door components"><a class="box-link" href="#box-client" aria-label="Client: open explanation"><rect class="sys-box" x="660" y="230" width="180" height="65" rx="2" fill="#3ddc4a"/><text class="sys-small" text-anchor="middle"><tspan x="750.0" y="268.5">Client</tspan></text><rect class="hit" x="656" y="226" width="188" height="73"/></a><a class="box-link" href="#box-dns" aria-label="DNS: open explanation"><rect class="sys-box" x="1000" y="230" width="180" height="65" rx="2" fill="#d6f57a"/><text class="sys-small" text-anchor="middle"><tspan x="1090.0" y="268.5">DNS</tspan></text><rect class="hit" x="996" y="226" width="188" height="73"/></a><a class="box-link" href="#box-cdn" aria-label="CDN: open explanation"><rect class="sys-box" x="1000" y="360" width="180" height="65" rx="2" fill="#7cd0f5"/><text class="sys-small" text-anchor="middle"><tspan x="1090.0" y="398.5">CDN</tspan></text><rect class="hit" x="996" y="356" width="188" height="73"/></a><a href="#pop-1" class="box-link" aria-label="Step 1: Front door"><rect class="step-badge" x="1195" y="248" width="118" height="28" rx="14"/><text class="step-badge-t" x="1207" y="267">1 · Front door</text></a></g>
+<g data-motion-item data-step="2" aria-label="Step 2 of 6: Spread the load components"><a class="box-link" href="#box-load-balancer" aria-label="Load Balancer: open explanation"><rect class="sys-copy" x="666" y="526" width="220" height="82" rx="2" fill="#d688c7"/><rect class="sys-copy" x="653" y="513" width="220" height="82" rx="2" fill="#d688c7"/><rect class="sys-box" x="640" y="500" width="220" height="82" rx="2" fill="#f39ae2"/><text class="sys-small" text-anchor="middle"><tspan x="750.0" y="547.0">Load Balancer</tspan></text><rect class="hit" x="636" y="496" width="228" height="90"/></a><a class="box-link" href="#box-web-server" aria-label="Web Server: open explanation"><rect class="sys-copy" x="666" y="706" width="220" height="82" rx="2" fill="#c89e33"/><rect class="sys-copy" x="653" y="693" width="220" height="82" rx="2" fill="#c89e33"/><rect class="sys-box" x="640" y="680" width="220" height="82" rx="2" fill="#e3b33a"/><text class="sys-small" text-anchor="middle"><tspan x="750.0" y="727.0">Web Server</tspan></text><rect class="hit" x="636" y="676" width="228" height="90"/></a><a href="#pop-2" class="box-link" aria-label="Step 2: Spread the load"><rect class="step-badge" x="900" y="515" width="158" height="28" rx="14"/><text class="step-badge-t" x="912" y="534">2 · Spread the load</text></a></g>
+<g data-motion-item data-step="3" aria-label="Step 3 of 6: App layer components"><a class="box-link" href="#box-write-api-async" aria-label="Write API Async: open explanation"><rect class="sys-copy" x="506" y="926" width="150" height="90" rx="2" fill="#dab66f"/><rect class="sys-copy" x="493" y="913" width="150" height="90" rx="2" fill="#dab66f"/><rect class="sys-box" x="480" y="900" width="150" height="90" rx="2" fill="#f8cf7e"/><text class="sys-small" text-anchor="middle"><tspan x="555.0" y="938.0">Write API</tspan><tspan x="555.0" y="964.0">Async</tspan></text><rect class="hit" x="476" y="896" width="158" height="98"/></a><a class="box-link" href="#box-write-api" aria-label="Write API: open explanation"><rect class="sys-copy" x="701" y="926" width="150" height="90" rx="2" fill="#dab66f"/><rect class="sys-copy" x="688" y="913" width="150" height="90" rx="2" fill="#dab66f"/><rect class="sys-box" x="675" y="900" width="150" height="90" rx="2" fill="#f8cf7e"/><text class="sys-small" text-anchor="middle"><tspan x="750.0" y="951.0">Write API</tspan></text><rect class="hit" x="671" y="896" width="158" height="98"/></a><a class="box-link" href="#box-read-api" aria-label="Read API: open explanation"><rect class="sys-copy" x="1026" y="926" width="150" height="90" rx="2" fill="#dab66f"/><rect class="sys-copy" x="1013" y="913" width="150" height="90" rx="2" fill="#dab66f"/><rect class="sys-box" x="1000" y="900" width="150" height="90" rx="2" fill="#f8cf7e"/><text class="sys-small" text-anchor="middle"><tspan x="1075.0" y="951.0">Read API</tspan></text><rect class="hit" x="996" y="896" width="158" height="98"/></a><a href="#pop-3" class="box-link" aria-label="Step 3: App layer"><rect class="step-badge" x="900" y="760" width="110" height="28" rx="14"/><text class="step-badge-t" x="912" y="779">3 · App layer</text></a></g>
+<g data-motion-item data-step="4" aria-label="Step 4 of 6: Async work components"><a class="box-link" href="#box-worker-service" aria-label="Worker Service: open explanation"><rect class="sys-copy" x="66" y="926" width="170" height="90" rx="2" fill="#dab66f"/><rect class="sys-copy" x="53" y="913" width="170" height="90" rx="2" fill="#dab66f"/><rect class="sys-box" x="40" y="900" width="170" height="90" rx="2" fill="#f8cf7e"/><text class="sys-small" text-anchor="middle"><tspan x="125.0" y="938.0">Worker</tspan><tspan x="125.0" y="964.0">Service</tspan></text><rect class="hit" x="36" y="896" width="178" height="98"/></a><a class="box-link" href="#box-queue" aria-label="Queue: open explanation"><rect class="sys-copy" x="286" y="926" width="160" height="90" rx="2" fill="#66d1ba"/><rect class="sys-copy" x="273" y="913" width="160" height="90" rx="2" fill="#66d1ba"/><rect class="sys-box" x="260" y="900" width="160" height="90" rx="2" fill="#74edd3"/><text class="sys-small" text-anchor="middle"><tspan x="340.0" y="951.0">Queue</tspan></text><rect class="hit" x="256" y="896" width="168" height="98"/></a><a class="box-link" href="#box-nosql" aria-label="NoSQL: open explanation"><path class="cyl" fill="#f5ef7a" d="M300,1314 C300,1307.0 440,1307.0 440,1314 V1386 C440,1407.0 300,1407.0 300,1386 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="370.0" cy="1314" rx="70.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="370.0" y="1363.0">NoSQL</tspan></text><rect class="hit" x="296" y="1296" width="148" height="108"/></a><a href="#pop-4" class="box-link" aria-label="Step 4: Async work"><rect class="step-badge" x="260" y="1036" width="118" height="28" rx="14"/><text class="step-badge-t" x="272" y="1055">4 · Async work</text></a></g>
+<g data-motion-item data-step="5" aria-label="Step 5 of 6: Fast reads components"><a class="box-link" href="#box-memory-cache" aria-label="Memory Cache: open explanation"><rect class="sys-copy" x="856" y="1126" width="190" height="82" rx="2" fill="#d88f59"/><rect class="sys-copy" x="843" y="1113" width="190" height="82" rx="2" fill="#d88f59"/><rect class="sys-box" x="830" y="1100" width="190" height="82" rx="2" fill="#f6a265"/><text class="sys-small" text-anchor="middle"><tspan x="925.0" y="1147.0">Memory Cache</tspan></text><rect class="hit" x="826" y="1096" width="198" height="90"/></a><a class="box-link" href="#box-sql-read" aria-label="SQL Read Replicas: open explanation"><path class="cyl-back" fill="#d8d26b" d="M1021,1340 C1021,1333.0 1181,1333.0 1181,1340 V1412 C1181,1433.0 1021,1433.0 1021,1412 Z"/><ellipse class="cyl-back" fill="#d8d26b" cx="1101.0" cy="1340" rx="80.0" ry="14"/><path class="cyl-back" fill="#d8d26b" d="M1008,1327 C1008,1320.0 1168,1320.0 1168,1327 V1399 C1168,1420.0 1008,1420.0 1008,1399 Z"/><ellipse class="cyl-back" fill="#d8d26b" cx="1088.0" cy="1327" rx="80.0" ry="14"/><path class="cyl" fill="#f5ef7a" d="M995,1314 C995,1307.0 1155,1307.0 1155,1314 V1386 C1155,1407.0 995,1407.0 995,1386 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="1075.0" cy="1314" rx="80.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="1075.0" y="1350.0">SQL Read</tspan><tspan x="1075.0" y="1376.0">Replicas</tspan></text><rect class="hit" x="991" y="1296" width="168" height="108"/></a><a href="#pop-5" class="box-link" aria-label="Step 5: Fast reads"><rect class="step-badge" x="1200" y="1100" width="118" height="28" rx="14"/><text class="step-badge-t" x="1212" y="1119">5 · Fast reads</text></a></g>
+<g data-motion-item data-step="6" aria-label="Step 6 of 6: Store and scale data components"><rect class="sys-frame" x="654" y="1272" width="543" height="176" rx="8"/><a class="box-link" href="#box-sharding" aria-label="sharding: open explanation"><rect class="sys-frame" x="60" y="1560" width="400" height="160" rx="8"/><rect class="sys-frame-label" x="76" y="1548" width="106" height="24"/><text class="sys-frame-text" x="84" y="1566">SHARDING</text></a><a class="box-link" href="#box-federation" aria-label="federation: open explanation"><rect class="sys-frame" x="60" y="1750" width="400" height="160" rx="8"/><rect class="sys-frame-label" x="76" y="1738" width="128" height="24"/><text class="sys-frame-text" x="84" y="1756">FEDERATION</text></a><a class="box-link" href="#box-sql-write" aria-label="SQL Write Master–Slave: open explanation"><path class="cyl-back" fill="#d8d26b" d="M683,1327 C683,1320.0 843,1320.0 843,1327 V1399 C843,1420.0 683,1420.0 683,1399 Z"/><ellipse class="cyl-back" fill="#d8d26b" cx="763.0" cy="1327" rx="80.0" ry="14"/><path class="cyl" fill="#f5ef7a" d="M670,1314 C670,1307.0 830,1307.0 830,1314 V1386 C830,1407.0 670,1407.0 670,1386 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="750.0" cy="1314" rx="80.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="750.0" y="1350.0">SQL Write</tspan><tspan x="750.0" y="1376.0">Master–Slave</tspan></text><rect class="hit" x="666" y="1296" width="168" height="108"/></a><a class="box-link" href="#box-object-store" aria-label="Object Store: open explanation"><path class="cyl" fill="#f5ef7a" d="M1250,1314 C1250,1307.0 1390,1307.0 1390,1314 V1386 C1390,1407.0 1250,1407.0 1250,1386 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="1320.0" cy="1314" rx="70.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="1320.0" y="1350.0">Object</tspan><tspan x="1320.0" y="1376.0">Store</tspan></text><rect class="hit" x="1246" y="1296" width="148" height="108"/></a><a class="box-link" href="#box-sharding" aria-label="Customers A–M SQL: open explanation"><path class="cyl" fill="#f5ef7a" d="M85,1614 C85,1607.0 245,1607.0 245,1614 V1686 C245,1707.0 85,1707.0 85,1686 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="165.0" cy="1614" rx="80.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="165.0" y="1650.0">Customers A–M</tspan><tspan x="165.0" y="1676.0">SQL</tspan></text><rect class="hit" x="81" y="1596" width="168" height="108"/></a><a class="box-link" href="#box-sharding" aria-label="Customers N–Z SQL: open explanation"><path class="cyl" fill="#f5ef7a" d="M275,1614 C275,1607.0 435,1607.0 435,1614 V1686 C435,1707.0 275,1707.0 275,1686 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="355.0" cy="1614" rx="80.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="355.0" y="1650.0">Customers N–Z</tspan><tspan x="355.0" y="1676.0">SQL</tspan></text><rect class="hit" x="271" y="1596" width="168" height="108"/></a><a class="box-link" href="#box-federation" aria-label="Customers SQL: open explanation"><path class="cyl" fill="#f5ef7a" d="M100,1804 C100,1797.0 230,1797.0 230,1804 V1876 C230,1897.0 100,1897.0 100,1876 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="165.0" cy="1804" rx="65.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="165.0" y="1840.0">Customers</tspan><tspan x="165.0" y="1866.0">SQL</tspan></text><rect class="hit" x="96" y="1786" width="138" height="108"/></a><a class="box-link" href="#box-federation" aria-label="Products SQL: open explanation"><path class="cyl" fill="#f5ef7a" d="M280,1804 C280,1797.0 410,1797.0 410,1804 V1876 C410,1897.0 280,1897.0 280,1876 Z"/><ellipse class="cyl" fill="#f5ef7a" cx="345.0" cy="1804" rx="65.0" ry="14"/><text class="sys-small" text-anchor="middle"><tspan x="345.0" y="1840.0">Products</tspan><tspan x="345.0" y="1866.0">SQL</tspan></text><rect class="hit" x="276" y="1786" width="138" height="108"/></a><a href="#pop-6" class="box-link" aria-label="Step 6: Store &amp; scale data"><rect class="step-badge" x="660" y="1462" width="182" height="28" rx="14"/><text class="step-badge-t" x="672" y="1481">6 · Store &amp; scale data</text></a></g>
+</svg>
+<article class="pop phase-pop pl" id="pop-1" style="--x: 82.6%; --y: 12.7%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>1 · Front door</h2><p class="goal">DNS maps the site name to an address. A CDN can serve static files near the client.</p></article>
+<article class="pop phase-pop" id="pop-2" style="--x: 62.2%; --y: 26.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>2 · Spread the load</h2><p class="goal">A load balancer spreads traffic across web servers. The web layer routes the request to the right application API.</p></article>
+<article class="pop phase-pop" id="pop-3" style="--x: 62.2%; --y: 38.9%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>3 · App layer</h2><p class="goal">Read, write, and asynchronous APIs separate work that scales differently. Each API has one clear next hop.</p></article>
+<article class="pop phase-pop" id="pop-4" style="--x: 18.0%; --y: 53.0%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>4 · Async work</h2><p class="goal">A queue holds slow work until a worker can pull it. That keeps long-running jobs off the request path.</p></article>
+<article class="pop phase-pop pl pu" id="pop-5" style="--x: 82.9%; --y: 56.3%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>5 · Fast reads</h2><p class="goal">Read requests check memory first. Read replicas take pressure off the SQL writer when the cache misses.</p></article>
+<article class="pop phase-pop pu" id="pop-6" style="--x: 45.6%; --y: 74.9%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>6 · Store &amp; scale data</h2><p class="goal">The write database replicates to readers, while object storage and split databases scale data handling.</p></article>
+<article class="pop box-card" id="box-client" style="--x: 51.8%; --y: 13.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Client</h2><p class="phase-tag"><a href="#pop-1">Step 1 · Front door</a></p><h3>What it is</h3><p>The person or program making a request.</p><h3>Its job here</h3><p>It starts by resolving a name or requesting static content. Dynamic HTTPS traffic continues to the Load Balancer.</p><h3>Trade-off</h3><p>Clients depend on DNS; a DNS outage can stop access even when servers are running.</p><h3>In the primer</h3><p>Domain name system</p></article>
+<article class="pop box-card pl" id="box-dns" style="--x: 75.3%; --y: 13.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>DNS</h2><p class="phase-tag"><a href="#pop-1">Step 1 · Front door</a></p><h3>What it is</h3><p>DNS translates a domain name to an IP address.</p><h3>Its job here</h3><p>It receives the client lookup and tells the client where to connect. The client can then reach the CDN or Load Balancer.</p><h3>Examples</h3><ul class="chips"><li>CloudFlare</li><li>Route 53</li></ul><h3>Trade-off</h3><p>Accessing DNS adds a slight delay, though caching can reduce it.</p><h3>In the primer</h3><p>DNS</p></article>
+<article class="pop box-card pl" id="box-cdn" style="--x: 75.3%; --y: 20.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>CDN</h2><p class="phase-tag"><a href="#pop-1">Step 1 · Front door</a></p><h3>What it is</h3><p>A CDN is a distributed network of proxy servers that serves content close to users.</p><h3>Its job here</h3><p>It receives static requests from the Client and serves or fetches files from Object Store. This keeps static work away from Web Server.</p><h3>Examples</h3><ul class="chips"><li>CloudFlare</li></ul><h3>Trade-off</h3><p>Content can be stale when it changes before its TTL expires.</p><h3>In the primer</h3><p>Content delivery network</p></article>
+<article class="pop box-card" id="box-load-balancer" style="--x: 51.8%; --y: 27.7%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Load Balancer</h2><p class="phase-tag"><a href="#pop-2">Step 2 · Spread the load</a></p><h3>What it is</h3><p>A load balancer distributes incoming requests across computing resources.</p><h3>Its job here</h3><p>It receives HTTPS traffic from the Client and sends it to Web Server instances. Multiple instances avoid one machine carrying all traffic.</p><h3>Examples</h3><ul class="chips"><li>HAProxy</li><li>NGINX</li></ul><h3>Trade-off</h3><p>A load balancer can become a bottleneck if it lacks resources or is configured poorly.</p><h3>In the primer</h3><p>Load balancer</p></article>
+<article class="pop box-card" id="box-web-server" style="--x: 51.8%; --y: 36.9%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Web Server</h2><p class="phase-tag"><a href="#pop-2">Step 2 · Spread the load</a></p><h3>What it is</h3><p>A reverse proxy centralizes internal services behind one public interface.</p><h3>Its job here</h3><p>It receives traffic from Load Balancer and routes it to the APIs. It can also serve cached or static content.</p><h3>Examples</h3><ul class="chips"><li>NGINX</li><li>HAProxy</li></ul><h3>Trade-off</h3><p>A single reverse proxy is a single point of failure; failover adds complexity.</p><h3>In the primer</h3><p>Reverse proxy (web server)</p></article>
+<article class="pop box-card" id="box-worker-service" style="--x: 8.6%; --y: 48.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Worker Service</h2><p class="phase-tag"><a href="#pop-4">Step 4 · Async work</a></p><h3>What it is</h3><p>A worker runs jobs outside the request path.</p><h3>Its job here</h3><p>It pulls a job from Queue and can update NoSQL or store output in Object Store. This keeps slow work away from the client request.</p><h3>Examples</h3><ul class="chips"><li>Celery</li></ul><h3>Trade-off</h3><p>Queues can add delays and complexity.</p><h3>In the primer</h3><p>Asynchronism / task queues</p></article>
+<article class="pop box-card" id="box-queue" style="--x: 23.5%; --y: 48.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Queue</h2><p class="phase-tag"><a href="#pop-4">Step 4 · Async work</a></p><h3>What it is</h3><p>A message queue receives, holds, and delivers jobs.</p><h3>Its job here</h3><p>Write API Async enqueues work here. Worker Service pulls the next job and processes it in the background.</p><h3>Examples</h3><ul class="chips"><li>Redis</li><li>RabbitMQ</li><li>Amazon SQS</li></ul><h3>Trade-off</h3><p>Queues can add delays and complexity.</p><h3>In the primer</h3><p>Asynchronism / message queues</p></article>
+<article class="pop box-card" id="box-write-api-async" style="--x: 38.4%; --y: 48.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Write API Async</h2><p class="phase-tag"><a href="#pop-3">Step 3 · App layer</a></p><h3>What it is</h3><p>An application API that accepts work that can finish later.</p><h3>Its job here</h3><p>It receives work from Web Server and hands a job to Queue. Worker Service handles that job outside the request.</p><h3>Trade-off</h3><p>Queues add delays and complexity for work that would be inexpensive to run synchronously.</p><h3>In the primer</h3><p>Application layer</p></article>
+<article class="pop box-card" id="box-write-api" style="--x: 51.8%; --y: 48.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Write API</h2><p class="phase-tag"><a href="#pop-3">Step 3 · App layer</a></p><h3>What it is</h3><p>An application API that handles writes.</p><h3>Its job here</h3><p>It receives write requests from Web Server and sends changes to SQL Write Master–Slave. It can also store files in Object Store.</p><h3>Trade-off</h3><p>Loosely coupled services add deployment and operations complexity.</p><h3>In the primer</h3><p>Application layer</p></article>
+<article class="pop box-card pl" id="box-read-api" style="--x: 74.3%; --y: 48.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Read API</h2><p class="phase-tag"><a href="#pop-3">Step 3 · App layer</a></p><h3>What it is</h3><p>An application API that handles reads.</p><h3>Its job here</h3><p>It receives requests from Web Server and checks Memory Cache first. On a miss it reads from SQL Read Replicas.</p><h3>Trade-off</h3><p>Loosely coupled services add deployment and operations complexity.</p><h3>In the primer</h3><p>Application layer</p></article>
+<article class="pop box-card pu" id="box-memory-cache" style="--x: 63.9%; --y: 58.4%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Memory Cache</h2><p class="phase-tag"><a href="#pop-5">Step 5 · Fast reads</a></p><h3>What it is</h3><p>An in-memory cache holds key-value data in RAM.</p><h3>Its job here</h3><p>Read API checks it first. On a miss, Read API reads from SQL Read Replicas instead. This takes load off the database.</p><h3>Examples</h3><ul class="chips"><li>Memcached</li><li>Redis</li></ul><h3>Trade-off</h3><p>Cache invalidation is difficult and adds complexity.</p><h3>In the primer</h3><p>Cache</p></article>
+<article class="pop box-card pu" id="box-nosql" style="--x: 25.6%; --y: 69.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>NoSQL</h2><p class="phase-tag"><a href="#pop-4">Step 4 · Async work</a></p><h3>What it is</h3><p>A NoSQL database stores data outside the relational model.</p><h3>Its job here</h3><p>Worker Service can update it after pulling a job from Queue. It accepts data that does not need the SQL write path.</p><h3>Examples</h3><ul class="chips"><li>MongoDB</li><li>DynamoDB</li><li>Cassandra</li></ul><h3>Trade-off</h3><p>NoSQL systems often trade strong consistency for availability or partition tolerance.</p><h3>In the primer</h3><p>NoSQL</p></article>
+<article class="pop box-card pu" id="box-sql-write" style="--x: 51.8%; --y: 69.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>SQL Write Master–Slave</h2><p class="phase-tag"><a href="#pop-6">Step 6 · Store and scale data</a></p><h3>What it is</h3><p>A master serves writes and replicates them to slaves.</p><h3>Its job here</h3><p>Write API sends writes here. Changes replicate to SQL Read Replicas, which serve read traffic.</p><h3>Examples</h3><ul class="chips"><li>MySQL</li></ul><h3>Trade-off</h3><p>A master failure before replication can cause data loss.</p><h3>In the primer</h3><p>Master-slave replication</p></article>
+<article class="pop box-card pl pu" id="box-sql-read" style="--x: 74.3%; --y: 69.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>SQL Read Replicas</h2><p class="phase-tag"><a href="#pop-5">Step 5 · Fast reads</a></p><h3>What it is</h3><p>Read replicas serve reads after changes are copied from the write master.</p><h3>Its job here</h3><p>Read API sends cache misses here. The replicas reduce load on SQL Write Master–Slave.</p><h3>Examples</h3><ul class="chips"><li>MySQL</li></ul><h3>Trade-off</h3><p>More replicas can mean greater replication lag.</p><h3>In the primer</h3><p>Master-slave replication</p></article>
+<article class="pop box-card pl pu" id="box-object-store" style="--x: 91.2%; --y: 69.1%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Object Store</h2><p class="phase-tag"><a href="#pop-6">Step 6 · Store and scale data</a></p><h3>What it is</h3><p>Object storage keeps static files separately from application servers.</p><h3>Its job here</h3><p>CDN serves static files from it, while Write API and Worker Service can store new files there. This removes that content from Web Server storage.</p><h3>Examples</h3><ul class="chips"><li>S3</li></ul><h3>Trade-off</h3><p>Separate storage increases complexity and requires application changes.</p><h3>In the primer</h3><p>Scaling AWS walkthrough</p></article>
+<article class="pop box-card pu" id="box-sharding" style="--x: 18.0%; --y: 84.0%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Sharding</h2><p class="phase-tag"><a href="#pop-6">Step 6 · Store and scale data</a></p><h3>What it is</h3><p>Sharding distributes one data set across databases, each holding a subset.</p><h3>Its job here</h3><p>Customers A–M and Customers N–Z show a split by data range. Application logic chooses the shard for each read and write.</p><h3>Trade-off</h3><p>You need to update application logic to determine which shard to read and write.</p><h3>In the primer</h3><p>Sharding</p></article>
+<article class="pop box-card pu" id="box-federation" style="--x: 18.0%; --y: 93.7%"><a class="pop-x" href="#close-card" aria-label="Close explanation">✕</a><h2>Federation</h2><p class="phase-tag"><a href="#pop-6">Step 6 · Store and scale data</a></p><h3>What it is</h3><p>Federation splits databases by function.</p><h3>Its job here</h3><p>Customers SQL and Products SQL keep different functions separate. The application chooses the database for each operation.</p><h3>Trade-off</h3><p>Joining data from two databases is more complex.</p><h3>In the primer</h3><p>Federation</p></article>
+</div>
+<!-- GENERATED:END -->
+    <div data-motion-controls role="group" aria-label="Diagram playback controls">
+      <button type="button" data-motion-action="prev">Previous</button>
+      <button type="button" data-motion-action="play" aria-pressed="false">Play</button>
+      <button type="button" data-motion-action="pause" aria-pressed="true">Pause</button>
+      <button type="button" data-motion-action="next">Next</button>
+      <button type="button" data-motion-action="replay">Replay</button>
+      <span class="keyboard-help">←/→ step · Space play/pause · R replay · Home/End jump</span>
+      <span data-motion-status-visible aria-hidden="true">Step <span data-motion-step-label>6</span> of 6</span>
+    </div>
+    <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
+    <noscript><p>Animation controls require JavaScript. The complete final diagram is shown above.</p></noscript>
+    <i id="close-card" aria-hidden="true"></i>
+    <section class="panel" id="panel" aria-label="Step detail"><div class="panel-head"><p>Detail · follows playback, or click any box or step to pin it</p><a class="follow" href="#close-card">Close · follow playback</a></div><p class="hint">Click any box for an explanation, or use Next or Play to walk through the six steps.</p><article class="card" id="detail-1"><h2>1 · Front door</h2><p class="goal">DNS maps the site name to an address. A CDN can serve static files near the client.</p><p>The client enters through DNS or the CDN.</p></article>
+<article class="card" id="detail-2"><h2>2 · Spread the load</h2><p class="goal">A load balancer spreads traffic across web servers. The web layer routes the request to the right application API.</p><p>Requests are distributed before they reach the application.</p></article>
+<article class="card" id="detail-3"><h2>3 · App layer</h2><p class="goal">Read, write, and asynchronous APIs separate work that scales differently. Each API has one clear next hop.</p><p>The API layer separates read, write, and deferred work.</p></article>
+<article class="card" id="detail-4"><h2>4 · Async work</h2><p class="goal">A queue holds slow work until a worker can pull it. That keeps long-running jobs off the request path.</p><p>Queued work is processed without blocking the request.</p></article>
+<article class="card" id="detail-5"><h2>5 · Fast reads</h2><p class="goal">Read requests check memory first. Read replicas take pressure off the SQL writer when the cache misses.</p><p>The read path favors memory and then replicas.</p></article>
+<article class="card" id="detail-6"><h2>6 · Store and scale data</h2><p class="goal">The write database replicates to readers, while object storage and split databases scale data handling.</p><p>Storage patterns keep growing data manageable.</p></article></section>
+  </main>
+
+  <script data-diagram-controls>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const staticOverride = params.get('motion') === 'static' || document.documentElement.dataset.motion === 'static';
+      const requestedStep = params.get('step');
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      document.fonts.ready.then(() => { document.documentElement.dataset.fontsReady = 'true'; });
+
+      document.querySelectorAll('[data-motion-root]').forEach((root) => {
+        const count = Number(root.dataset.stepCount);
+        const hold = parseFloat(getComputedStyle(root).getPropertyValue('--motion-hold')) || 720;
+        const parsedStep = requestedStep !== null && /^\d+$/.test(requestedStep) ? Number(requestedStep) : null;
+        const exactStep = params.get('motion') === 'step' && Number.isSafeInteger(parsedStep) && parsedStep >= 0 && parsedStep <= count ? parsedStep : null;
+        const items = [...root.querySelectorAll('[data-motion-item]')];
+        const labels = Array.from({ length: count + 1 }, (_, index) => index === 0
+          ? 'Ready'
+          : items.filter((item) => !item.hasAttribute('data-motion-decorative') && Number(item.dataset.step) === index)
+              .map((item) => item.getAttribute('aria-label')).join('; '));
+        const controls = root.querySelector('[data-motion-controls]');
+        const status = root.querySelector('[data-motion-status]');
+        const visibleStep = root.querySelector('[data-motion-step-label]');
+        let step = count;
+        let timer = 0;
+        let playing = false;
+        let stepBeforeReduce = 0;
+        let resumeAfterReduce = root.dataset.motionMode === 'reveal';
+
+        const buttons = (action) => controls.querySelector(`[data-motion-action="${action}"]`);
+        const clearClock = () => { window.clearTimeout(timer); timer = 0; };
+        const announce = () => { status.textContent = `Step ${step} of ${count}: ${labels[step] || 'Complete'}`; };
+        const setControlsAvailable = (available) => {
+          controls.hidden = !available;
+          controls.setAttribute('aria-hidden', String(!available));
+          controls.dataset.playbackDisabled = String(!available);
+          controls.querySelectorAll('button').forEach((control) => { control.disabled = !available; });
+        };
+
+        function render(next, userInitiated = false) {
+          step = Math.max(0, Math.min(count, next));
+          root.dataset.stepCurrent = String(step);
+          root.dataset.frame = step === count ? 'end' : step === 0 ? 'start' : 'step';
+          items.forEach((item) => {
+            const itemStep = Number(item.dataset.step);
+            item.classList.toggle('is-visible', itemStep <= step);
+            item.classList.toggle('is-current', itemStep === step);
+          });
+          if (visibleStep) visibleStep.textContent = String(step);
+          const unavailable = controls.dataset.playbackDisabled === 'true';
+          buttons('prev').disabled = unavailable || step === 0;
+          buttons('next').disabled = unavailable || step === count;
+          if (userInitiated) announce();
+        }
+
+        function pause(userInitiated = false) {
+          clearClock();
+          playing = false;
+          root.classList.remove('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'false');
+          buttons('pause').setAttribute('aria-pressed', 'true');
+          if (userInitiated) status.textContent = `Paused at step ${step} of ${count}`;
+        }
+
+        function finish() {
+          pause(false);
+          root.dataset.frame = 'end';
+          status.textContent = `Complete · step ${count} of ${count}`;
+        }
+
+        function tick() {
+          if (!playing) return;
+          if (step >= count) { finish(); return; }
+          render(step + 1, false);
+          if (step >= count) { finish(); return; }
+          timer = window.setTimeout(tick, hold);
+        }
+
+        function play(fromStart = false, userInitiated = false) {
+          clearClock();
+          if (fromStart || step >= count) render(0, userInitiated);
+          playing = true;
+          root.classList.add('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'true');
+          buttons('pause').setAttribute('aria-pressed', 'false');
+          timer = window.setTimeout(tick, hold);
+        }
+
+        controls.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-motion-action]');
+          if (!button) return;
+          const action = button.dataset.motionAction;
+          if (action === 'play') play(false, true);
+          if (action === 'pause') pause(true);
+          if (action === 'replay') play(true, true);
+          if (action === 'prev') { pause(false); render(step - 1, true); }
+          if (action === 'next') { pause(false); render(step + 1, true); }
+        });
+
+        root.addEventListener('keydown', (event) => {
+          if (event.target.matches('input, textarea, select, a[href]')) return;
+          const keys = { ArrowLeft: step - 1, ArrowRight: step + 1, Home: 0, End: count };
+          if (event.code === 'Space' && !event.target.closest('button')) {
+            event.preventDefault();
+            playing ? pause(true) : play(false, true);
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'r') {
+            event.preventDefault();
+            play(true, true);
+            return;
+          }
+          if (!(event.key in keys)) return;
+          event.preventDefault();
+          pause(false);
+          render(keys[event.key], true);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && playing) pause(false);
+        });
+        reduce.addEventListener('change', (event) => {
+          if (event.matches && root.dataset.motionState !== 'reduced') {
+            stepBeforeReduce = step;
+            resumeAfterReduce = playing;
+          }
+          pause(false);
+          if (event.matches) {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'reduced';
+            status.textContent = 'Reduced motion · complete static frame · playback controls unavailable';
+          } else if (staticOverride || root.dataset.motionMode === 'none') {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'static';
+            status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+          } else {
+            delete root.dataset.motionState;
+            if (exactStep !== null) {
+              setControlsAvailable(false);
+              render(exactStep, false);
+              root.dataset.frame = 'step';
+              root.dataset.motionState = 'test';
+              status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+            } else {
+              setControlsAvailable(true);
+              render(stepBeforeReduce, false);
+              status.textContent = `Ready · step ${step} of ${count}`;
+              if (resumeAfterReduce && root.dataset.motionMode === 'reveal') {
+                play(false, false);
+              }
+            }
+            resumeAfterReduce = false;
+          }
+        });
+
+        if (staticOverride) {
+          document.documentElement.dataset.motion = 'static';
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = 'static';
+          status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+        } else if (reduce.matches || root.dataset.motionMode === 'none') {
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = reduce.matches ? 'reduced' : 'static';
+          status.textContent = reduce.matches
+            ? 'Reduced motion · complete static frame · playback controls unavailable'
+            : 'Static frame · complete diagram · playback controls unavailable';
+        } else if (exactStep !== null) {
+          document.documentElement.dataset.motion = 'step';
+          pause(false);
+          setControlsAvailable(false);
+          render(exactStep, false);
+          root.dataset.frame = 'step';
+          root.dataset.motionState = 'test';
+          status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+        } else if (root.dataset.motionMode === 'reveal') {
+          setControlsAvailable(true);
+          render(0, false);
+          play(false, false);
+        } else {
+          pause(false);
+          setControlsAvailable(true);
+          render(0, false);
+          status.textContent = `Ready · step 0 of ${count}`;
+        }
+        root.classList.add('motion-ready');
+      });
+    })();
+  </script>
+</body>
+</html>

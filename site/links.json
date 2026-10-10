@@ -1,0 +1,335 @@
+{
+  "topics": [
+    {
+      "slug": "system-design-topics-start-here",
+      "title": "Start here",
+      "heading": "System design topics: start here",
+      "level": 2,
+      "group": "Start here",
+      "one_line": "Start with common system design principles and their pros and cons.",
+      "summary": {
+        "what": "A starting set of learning resources for common system design principles.",
+        "job": "It helps new learners review scalability topics before trade-offs and building blocks.",
+        "tradeoff": "Everything is a trade-off."
+      }
+    },
+    {
+      "slug": "study-guide",
+      "title": "Study guide",
+      "heading": "Study guide",
+      "level": 2,
+      "group": "Start here",
+      "one_line": "Plan system design study for a short, medium, or long interview timeline.",
+      "summary": {
+        "what": "A suggested set of topics to review for an interview timeline.",
+        "job": "It helps you choose breadth, depth, and practice based on your timeline.",
+        "tradeoff": "Interview questions depend on experience, background, role, company, and luck."
+      }
+    },
+    {
+      "slug": "how-to-approach-a-system-design-interview-question",
+      "title": "Interview approach",
+      "heading": "How to approach a system design interview question",
+      "level": 2,
+      "group": "Start here",
+      "one_line": "Lead an open-ended design interview with a clear sequence of steps.",
+      "summary": {
+        "what": "A guide for tackling a system design interview question.",
+        "job": "It guides you through requirements, a high-level design, core parts, and scale.",
+        "tradeoff": "Discuss potential solutions and trade-offs when you address bottlenecks."
+      }
+    },
+    {
+      "slug": "performance-vs-scalability",
+      "title": "Performance vs scalability",
+      "heading": "Performance vs scalability",
+      "level": 2,
+      "group": "Trade-offs",
+      "one_line": "Separate a slow system for one user from one that slows under load.",
+      "summary": {
+        "what": "A service is scalable when added resources increase performance in proportion.",
+        "job": "It helps distinguish a single-user performance problem from a heavy-load scalability problem.",
+        "tradeoff": "More performance can mean serving more work or handling larger work units."
+      }
+    },
+    {
+      "slug": "latency-vs-throughput",
+      "title": "Latency vs throughput",
+      "heading": "Latency vs throughput",
+      "level": 2,
+      "group": "Trade-offs",
+      "one_line": "Balance time for one action against actions completed over time.",
+      "summary": {
+        "what": "Latency is the time for an action or result. Throughput is actions or results per unit of time.",
+        "job": "It helps set a goal of high throughput with acceptable latency.",
+        "tradeoff": "Aim for maximal throughput with acceptable latency."
+      }
+    },
+    {
+      "slug": "availability-vs-consistency",
+      "title": "Availability vs consistency",
+      "heading": "Availability vs consistency",
+      "level": 2,
+      "group": "Trade-offs",
+      "one_line": "Choose how a distributed system handles current data and continued responses.",
+      "summary": {
+        "what": "CAP describes consistency, availability, and tolerance of network partitions.",
+        "job": "It helps choose guarantees for a distributed computer system during network failures.",
+        "tradeoff": "Networks are not reliable, so partition tolerance requires a choice between consistency and availability."
+      }
+    },
+    {
+      "slug": "consistency-patterns",
+      "title": "Consistency patterns",
+      "heading": "Consistency patterns",
+      "level": 2,
+      "group": "Trade-offs",
+      "one_line": "Choose how copies of data synchronize for client reads.",
+      "summary": {
+        "what": "Weak, eventual, and strong consistency describe when reads see a write.",
+        "job": "It helps synchronize multiple data copies so clients have a consistent view.",
+        "tradeoff": "Weak reads might not see a write; strong consistency replicates data synchronously."
+      }
+    },
+    {
+      "slug": "availability-patterns",
+      "title": "Availability patterns",
+      "heading": "Availability patterns",
+      "level": 2,
+      "group": "Trade-offs",
+      "one_line": "Use fail-over and replication to support high availability.",
+      "summary": {
+        "what": "Fail-over and replication are complementary patterns for high availability.",
+        "job": "They keep a service available when a server or component fails.",
+        "tradeoff": "Fail-over adds hardware and complexity, and failure before replication can lose data."
+      }
+    },
+    {
+      "slug": "domain-name-system",
+      "title": "Domain name system",
+      "heading": "Domain name system",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Translate a domain name to an IP address.",
+      "summary": {
+        "what": "DNS translates a domain name to an IP address.",
+        "job": "It tells clients which server to contact during a lookup.",
+        "tradeoff": "DNS access adds a slight delay, and cached mappings can become stale."
+      }
+    },
+    {
+      "slug": "content-delivery-network",
+      "title": "Content delivery network",
+      "heading": "Content delivery network",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Serve content from proxy servers close to users.",
+      "summary": {
+        "what": "A CDN is a global network of proxy servers that serves content near users.",
+        "job": "It serves static files and keeps fulfilled requests off your servers.",
+        "tradeoff": "Costs can be significant, and content can be stale before its TTL expires."
+      }
+    },
+    {
+      "slug": "load-balancer",
+      "title": "Load balancer",
+      "heading": "Load balancer",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Distribute client requests across computing resources.",
+      "summary": {
+        "what": "A load balancer distributes incoming client requests to computing resources.",
+        "job": "It avoids unhealthy or overloaded servers and can reduce a single point of failure.",
+        "tradeoff": "It can become a bottleneck, and multiple load balancers add complexity."
+      }
+    },
+    {
+      "slug": "reverse-proxy-web-server",
+      "title": "Reverse proxy",
+      "heading": "Reverse proxy (web server)",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Give public clients one interface to internal services.",
+      "summary": {
+        "what": "A reverse proxy is a web server that centralizes internal services for the public.",
+        "job": "It forwards a client request to a server and returns that server's response.",
+        "tradeoff": "A single reverse proxy is a single point of failure; more proxies add complexity."
+      }
+    },
+    {
+      "slug": "application-layer",
+      "title": "Application layer",
+      "heading": "Application layer",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Separate application services from the web layer.",
+      "summary": {
+        "what": "The application layer can be separated from the web layer.",
+        "job": "It lets each layer scale and be configured independently.",
+        "tradeoff": "Loosely coupled services and microservices add deployment and operations complexity."
+      }
+    },
+    {
+      "slug": "database",
+      "title": "Database",
+      "heading": "Database",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Store data and use patterns that help it scale.",
+      "summary": {
+        "what": "This section covers relational databases and NoSQL databases.",
+        "job": "It describes ways to scale a relational database, including replication, federation, and sharding.",
+        "tradeoff": "Replication, federation, and sharding add hardware and complexity."
+      }
+    },
+    {
+      "slug": "cache",
+      "title": "Cache",
+      "heading": "Cache",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Reuse prior results to speed page loads and reduce system load.",
+      "summary": {
+        "what": "A cache stores prior results so a request can avoid the original work.",
+        "job": "It improves page load times and reduces load on servers and databases.",
+        "tradeoff": "Cache invalidation is difficult, and caches must stay consistent with the source of truth."
+      }
+    },
+    {
+      "slug": "asynchronism",
+      "title": "Asynchronism",
+      "heading": "Asynchronism",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Move expensive work out of the request path.",
+      "summary": {
+        "what": "Asynchronous workflows run expensive work outside the request path.",
+        "job": "They reduce request times and can prepare time-consuming work in advance.",
+        "tradeoff": "Queues add delays and complexity, so inexpensive or real-time work can suit synchronous operations."
+      }
+    },
+    {
+      "slug": "communication",
+      "title": "Communication",
+      "heading": "Communication",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Compare ways clients and servers exchange data.",
+      "summary": {
+        "what": "This section covers HTTP, TCP, UDP, RPC, and REST.",
+        "job": "It helps choose how clients and servers exchange requests, responses, and data.",
+        "tradeoff": "TCP guarantees add delay; UDP is more efficient but less reliable."
+      }
+    },
+    {
+      "slug": "security",
+      "title": "Security",
+      "heading": "Security",
+      "level": 2,
+      "group": "Building blocks",
+      "one_line": "Cover basic steps that protect system data and inputs.",
+      "summary": {
+        "what": "Security is a broad topic. The primer covers basic security steps.",
+        "job": "It helps protect data, sanitize inputs, prevent SQL injection, and limit access.",
+        "tradeoff": "Unless a role requires it, the primer says basic security knowledge may be enough."
+      }
+    },
+    {
+      "slug": "powers-of-two-table",
+      "title": "Powers of two table",
+      "heading": "Powers of two table",
+      "level": 3,
+      "group": "Reference",
+      "one_line": "A table of powers of two and common byte sizes.",
+      "summary": {
+        "what": "A table lists powers of two with common counts and byte sizes.",
+        "job": "It is useful for back-of-the-envelope calculations.",
+        "tradeoff": "None stated in the primer."
+      }
+    },
+    {
+      "slug": "latency-numbers-every-programmer-should-know",
+      "title": "Latency numbers",
+      "heading": "Latency numbers every programmer should know",
+      "level": 3,
+      "group": "Reference",
+      "one_line": "Compare latency and throughput figures for common computer operations.",
+      "summary": {
+        "what": "A table compares latency for common computer and network operations.",
+        "job": "It provides handy metrics for back-of-the-envelope calculations.",
+        "tradeoff": "None stated in the primer."
+      }
+    },
+    {
+      "slug": "additional-system-design-interview-questions",
+      "title": "Additional interview questions",
+      "heading": "Additional system design interview questions",
+      "level": 3,
+      "group": "Reference",
+      "one_line": "Common design interview questions with links to solution resources.",
+      "summary": {
+        "what": "A list of common system design interview questions with resource links.",
+        "job": "It helps you find resources on how to solve each question.",
+        "tradeoff": "None stated in the primer."
+      }
+    },
+    {
+      "slug": "real-world-architectures",
+      "title": "Real world architectures",
+      "heading": "Real world architectures",
+      "level": 3,
+      "group": "Reference",
+      "one_line": "Articles about how real systems are designed.",
+      "summary": {
+        "what": "A collection of articles on how real world systems are designed.",
+        "job": "It helps identify shared principles, technologies, patterns, and lessons learned.",
+        "tradeoff": "Do not focus on the small details in these articles."
+      }
+    },
+    {
+      "slug": "company-architectures",
+      "title": "Company architectures",
+      "heading": "Company architectures",
+      "level": 3,
+      "group": "Reference",
+      "one_line": "Architecture references for a range of companies.",
+      "summary": {
+        "what": "A list of companies with links to architecture references.",
+        "job": "It helps you find architecture material for named companies.",
+        "tradeoff": "None stated in the primer."
+      }
+    },
+    {
+      "slug": "company-engineering-blogs",
+      "title": "Company engineering blogs",
+      "heading": "Company engineering blogs",
+      "level": 3,
+      "group": "Reference",
+      "one_line": "Engineering blogs for companies where you may interview.",
+      "summary": {
+        "what": "A list of engineering blogs from many companies.",
+        "job": "It helps you study architectures from companies where you are interviewing.",
+        "tradeoff": "Questions you encounter might come from the same domain."
+      }
+    }
+  ],
+  "hero_boxes": {
+    "box-client": "domain-name-system",
+    "box-dns": "domain-name-system",
+    "box-cdn": "content-delivery-network",
+    "box-load-balancer": "load-balancer",
+    "box-web-server": "reverse-proxy-web-server",
+    "box-worker-service": "asynchronism#task-queues",
+    "box-queue": "asynchronism#message-queues",
+    "box-write-api-async": "asynchronism#message-queues",
+    "box-write-api": "application-layer",
+    "box-read-api": "application-layer",
+    "box-memory-cache": "cache",
+    "box-nosql": "database#nosql",
+    "box-sql-write": "database#master-slave-replication",
+    "box-sql-read": "database#master-slave-replication",
+    "box-object-store": "solution:scaling-aws",
+    "box-sharding": "database#sharding",
+    "box-federation": "database#federation"
+  }
+}
