@@ -61,5 +61,6 @@ target/
 scratch/
 
 # IPython Notebook templates
-template.ipynb_site/
+template.ipynb
+_site/
 .venv/
