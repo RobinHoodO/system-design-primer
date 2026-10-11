@@ -71,8 +71,26 @@
       const controls = doc.querySelector('[data-motion-controls]');
       if (controls) doc.documentElement.style.setProperty('--embed-controls-height', `${Math.ceil(controls.getBoundingClientRect().height + 18)}px`);
       applyFrameTheme(frame);
+      if (!doc.documentElement.dataset.closeWired) {
+        doc.documentElement.dataset.closeWired = '1';
+        doc.addEventListener('click', (event) => {
+          if (event.target.closest('a, .pop:target, .box-card:target, .phase-pop:target')) return;
+          closeCard(doc.defaultView);
+        });
+        doc.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeCard(doc.defaultView); });
+      }
     } catch (_) {}
   };
+
+  // Close an open box or step card on a click outside it, or on Escape.
+  const closeCard = (win) => {
+    if (/^#(box|pop)-/.test(win.location.hash)) win.location.hash = '#close-card';
+  };
+  const closeAllCards = () => frames().forEach((frame) => { try { closeCard(frame.contentWindow); } catch (_) {} });
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('a[target="diagram-frame"]')) closeAllCards();
+  });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAllCards(); });
 
   const frameSource = (frame) => `${frame.dataset.embed || frame.getAttribute('src').split('#')[0]}${location.hash}`;
   const forwardHash = () => {
