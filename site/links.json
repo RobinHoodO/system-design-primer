@@ -40,6 +40,19 @@
       }
     },
     {
+      "slug": "how-to-think-like-an-architect",
+      "title": "Think like an architect",
+      "heading": "How to think like an architect",
+      "level": 2,
+      "group": "Trade-offs",
+      "one_line": "Turn business needs into goals for the system, then choose by trade-off in context.",
+      "summary": {
+        "what": "Mark Richards' method for making design choices, from his GIDS 2023 talk.",
+        "job": "It turns what the business wants into system goals, and helps you weigh options against them.",
+        "tradeoff": "Everything is a trade-off. There are no best practices for structure, only choices that fit the context."
+      }
+    },
+    {
       "slug": "performance-vs-scalability",
       "title": "Performance vs scalability",
       "heading": "Performance vs scalability",

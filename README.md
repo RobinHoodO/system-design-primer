@@ -101,6 +101,7 @@ Review the [Contributing Guidelines](CONTRIBUTING.md).
     * [Step 1: Review the scalability video lecture](#step-1-review-the-scalability-video-lecture)
     * [Step 2: Review the scalability article](#step-2-review-the-scalability-article)
     * [Next steps](#next-steps)
+* [How to think like an architect](#how-to-think-like-an-architect)
 * [Performance vs scalability](#performance-vs-scalability)
 * [Latency vs throughput](#latency-vs-throughput)
 * [Availability vs consistency](#availability-vs-consistency)
@@ -408,6 +409,99 @@ Next, we'll look at high-level trade-offs:
 Keep in mind that **everything is a trade-off**.
 
 Then we'll dive into more specific topics such as DNS, CDNs, and load balancers.
+
+## How to think like an architect
+
+> This section is not part of the original primer. It summarises Mark Richards' keynote [How to Think Like an Architect](https://www.youtube.com/watch?v=W7Krz__jJUg) (Developer Summit, GIDS 2023). Richards co-wrote *Fundamentals of Software Architecture* and *Software Architecture: The Hard Parts* with Neal Ford.
+
+The rest of this guide describes building blocks. This section is about how to choose between them.
+
+### The first law: everything is a trade-off
+
+Richards and Ford's first law of software architecture: "everything in software architecture is a trade-off." Every option has a downside. If you have not found one, you have not looked hard enough. Pages such as [performance vs scalability](#performance-vs-scalability) and [availability vs consistency](#availability-vs-consistency) apply this law to one pair of goals.
+
+### From business drivers to architecture characteristics
+
+**Architecture characteristics** are the "-ilities": scalability, availability, maintainability and so on. They are the reasons behind every structural choice. "It looks nice" is not a reason.
+
+They come from three places:
+
+* **The domain.** A stock trading system needs high performance and data integrity. Nobody has to tell you.
+* **Requirements.** These rarely name an "-ility". "Anywhere from 20 to 200,000 users at once, at short notice" means **elasticity**.
+* **What the business says.** The richest source, but it speaks a different language, so the architect translates:
+
+| The business cares about | The architecture must support |
+|---|---|
+| User satisfaction | Performance, availability, scalability, security, quick fixes (agility), testability, recoverability |
+| Time to market | Maintainability, testability and deployability, all three. Shipping fast without tests is not time to market |
+| Mergers and acquisitions | Interoperability, open standards, and capacity for a customer base that may double overnight |
+| Low cost and simplicity (a startup) | Simplicity. Start with a monolith and split it up once the idea proves itself |
+
+Then pick an architecture style that supports those characteristics. [Microservices](#microservices), event-driven and space-based styles rate high on scalability; a layered monolith rates low. Operations work added later will not give a style a characteristic it lacks.
+
+### Technical breadth and the 20-minute rule
+
+Picture your knowledge as a triangle with three layers:
+
+1. What you know. This is your technical **depth**.
+2. What you know you don't know.
+3. What you don't know you don't know.
+
+**Technical breadth** is the top two layers together. Developers grow depth. Architects trade some depth for breadth: knowing the trade-offs of ten caching tools is more useful than being an expert in one, because one known option is not a choice. Breadth also fades if you don't keep it up.
+
+Richards keeps it up with a **20-minute rule**: at least 20 minutes a day spent widening his breadth. Skim sources such as InfoQ, DZone Refcardz and the ThoughtWorks Technology Radar. Note terms you have never heard of, and look them up later.
+
+### Trade-off analysis in context
+
+1. Name the business driver, for example time to market.
+2. Translate it into characteristics: maintainability, testability, deployability.
+3. Boil the pros and cons down to the one pair in tension, for example performance vs maintainability.
+4. Pick the side the driver points to, and say what you give up.
+
+#### Out of context: shared library vs shared service
+
+Where should code that many services use live? A scorecard across every criterion:
+
+| Criterion | Shared library | Shared service |
+|---|---|---|
+| Code in many languages | ✗ one copy per platform | ✓ one place |
+| Code that changes often | ✗ every user rebuilds and retests | ✓ change it once |
+| Versioning | ✓ easy | ✗ hard at runtime |
+| Change risk | ✓ backward compatible | ✗ one bad deploy breaks every caller |
+| Performance, fault tolerance, scalability | ✓ | ✗ |
+
+Count the ticks and the library wins. Now add the context: services in several languages, shared code that changes often, and no worry about performance. Weight every criterion the context does not care about at **zero**, then count again. The shared service wins, 2 to 0.
+
+#### Event payloads: full data vs key only
+
+An order service sends each new order to payment and inventory through a [message queue](#message-queues). Should the event carry the whole order (45 fields, 500 KB) or only the order key?
+
+| | Full payload | Key only |
+|---|---|---|
+| Gains | Scalability and performance: consumers do not read the database | One system of record, small messages, no stamp coupling |
+| Costs | Contract versioning, stamp coupling, wasted bandwidth (payment needs 350 KB, inventory 50 KB), and many copies of the data that can drift apart | Every consumer queries the database, which costs scalability and performance |
+
+**Stamp coupling** means a service receives a whole record but uses only a few fields. A change to a field it never reads can still force it to change, and the unused data still costs bandwidth.
+
+Neither option is right in general. The characteristic the business ranks higher decides.
+
+### Best practices: process yes, structure no
+
+For structural choices, such as architecture style, number of services, sync vs [async](#asynchronism), or which service owns which data, there are no best practices. There are only trade-offs in context. "Always use microservices" is wrong for a small startup.
+
+Process does have best practices:
+
+* Always work with the development team and stakeholders. Architecture made alone fails.
+* Record each decision and its trade-off in an **architecture decision record** (ADR).
+
+### Don't evangelise
+
+"I found gRPC, it makes us ten times faster!" Excitement about a tool hides its downsides, so nobody goes looking for them. When a tool is pitched with only upsides, list its costs before anyone builds on it.
+
+### Talk and further reading
+
+* [How to Think Like an Architect, Mark Richards, GIDS 2023](https://www.youtube.com/watch?v=W7Krz__jJUg)
+* [Developer to Architect, Mark Richards' site with free lessons and resources](https://www.developertoarchitect.com/)
 
 ## Performance vs scalability
 
